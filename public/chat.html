@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neon Pulse Chat</title>
+  <!-- Tailwind CSS CDN with custom colors -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'neon-pink': '#ff00ff',
+            'neon-blue': '#00f0ff',
+            'neon-purple': '#9d00ff',
+            'neon-green': '#00ff9d',
+            'neon-yellow': '#fff000',
+            'deep-space': '#0f0e17',
+            'cosmic-purple': '#1a0a2e',
+            'electric-blue': '#2d00f7',
+          },
+          fontFamily: {
+            'orbitron': ['Orbitron', 'sans-serif'],
+            'rajdhani': ['Rajdhani', 'sans-serif'],
+          },
+          animation: {
+            'pulse-slow': 'pulse 6s infinite',
+            'float': 'float 6s ease-in-out infinite',
+            'neon-glow': 'neon-glow 1.5s ease-in-out infinite alternate',
+            'neon-flicker': 'neon-flicker 4s linear infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' },
+            },
+            'neon-glow': {
+              '0%': { 'text-shadow': '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #9d00ff, 0 0 20px #9d00ff' },
+              '100%': { 'text-shadow': '0 0 10px #fff, 0 0 20px #fff, 0 0 30px #ff00ff, 0 0 40px #ff00ff' },
+            },
+            'neon-flicker': {
+              '0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100%': { opacity: 1 },
+              '20%, 21.999%, 63%, 63.999%, 65%, 69.999%': { opacity: 0.4 },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Custom styles -->
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: linear-gradient(to bottom, #1a0a2e, #0f0e17);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(to bottom, #9d00ff, #ff00ff);
+      border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(to bottom, #ff00ff, #00f0ff);
+    }
+    
+    /* Message animations */
+    .message {
+      animation: fadeIn 0.3s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    
+    /* Background gradient */
+    body {
+      background: radial-gradient(circle at center, #1a0a2e 0%, #0f0e17 70%);
+    }
+    
+    /* Neon border effect */
+    .neon-border {
+      position: relative;
+      box-shadow: 0 0 10px rgba(157, 0, 255, 0.5);
+    }
+    .neon-border::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      z-index: -1;
+      background: linear-gradient(45deg, #ff00ff, #00f0ff, #9d00ff, #00ff9d);
+      background-size: 400% 400%;
+      border-radius: inherit;
+      opacity: 0;
+      transition: 0.5s;
+      animation: gradient 8s ease infinite;
+    }
+    .neon-border:hover::before {
+      opacity: 1;
+    }
+    @keyframes gradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    
+    /* Floating particles background */
+    .particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      overflow: hidden;
+    }
+    .particle {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    
+    /* Message bubble styling */
+    .message-bubble {
+      position: relative;
+      border-radius: 1rem;
+      padding: 1rem;
+      max-width: 80%;
+      word-wrap: break-word;
+    }
+    .message-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      width: 0;
+      height: 0;
+      border: 10px solid transparent;
+    }
+    .user-message {
+      background: linear-gradient(135deg, #9d00ff 0%, #2d00f7 100%);
+      align-self: flex-end;
+    }
+    .user-message::after {
+      right: -10px;
+      border-left-color: #2d00f7;
+      border-right: 0;
+    }
+    .other-message {
+      background: linear-gradient(135deg, #1a0a2e 0%, #2d00f7 100%);
+      align-self: flex-start;
+    }
+    .other-message::after {
+      left: -10px;
+      border-right-color: #1a0a2e;
+      border-left: 0;
+    }
+    
+    /* Online users sidebar */
+    .online-users-container {
+      transition: all 0.3s ease;
+      overflow-y: auto;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .message-bubble {
+        max-width: 90%;
+      }
+      .message-input-container {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .message-input {
+        width: 100%;
+        padding: 0.75rem;
+      }
+      .message-submit-btn {
+        width: 100%;
+        padding: 0.75rem;
+      }
+      .online-users-container {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 70%;
+        height: 100%;
+        z-index: 40;
+        background: rgba(26, 10, 46, 0.95);
+        backdrop-filter: blur(10px);
+      }
+      .online-users-container.active {
+        right: 0;
+      }
+      .online-users-toggle {
+        display: block;
+      }
+    }
+  </style>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Font Awesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="text-gray-100 min-h-screen font-rajdhani">
+  <!-- Floating particles background -->
+  <div class="particles" id="particles"></div>
+  
+  <div class="max-w-6xl mx-auto h-screen flex flex-col relative">
+    <!-- Header with animated gradient -->
+    <header class="bg-gradient-to-r from-cosmic-purple to-deep-space p-4 border-b-2 border-neon-purple shadow-lg neon-border">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <i class="fas fa-comment-dots text-3xl text-neon-pink animate-neon-glow"></i>
+          <div>
+            <h1 class="text-3xl font-bold font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-blue">
+              NEON PULSE
+            </h1>
+            <div class="flex items-center space-x-2">
+              <div class="w-3 h-3 rounded-full bg-neon-green animate-pulse"></div>
+              <span id="roomName" class="text-sm text-neon-yellow font-semibold"></span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button id="onlineUsersToggle" class="p-2 rounded-full bg-deep-space text-neon-blue hover:bg-neon-purple transition-all md:hidden">
+            <i class="fas fa-users"></i>
+          </button>
+          <button id="themeToggle" class="p-2 rounded-full bg-deep-space text-neon-yellow hover:bg-neon-purple transition-all">
+            <i class="fas fa-moon"></i>
+          </button>
+          <button id="logoutBtn" class="px-4 py-2 bg-gradient-to-r from-neon-pink to-neon-purple text-white font-bold rounded-lg hover:opacity-90 focus:outline-none transition-all group">
+            <span class="group-hover:animate-float">Leave Room</span> <i class="fas fa-sign-out-alt ml-1"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Chat Area -->
+    <div class="flex-1 flex overflow-hidden">
+      <!-- Online Users Sidebar (Desktop) -->
+      <div id="onlineUsersContainer" class="online-users-container w-64 bg-cosmic-purple border-r-2 border-neon-blue hidden md:block">
+        <div class="p-4 border-b-2 border-neon-blue">
+          <h3 class="text-lg font-bold text-neon-yellow flex items-center">
+            <i class="fas fa-users mr-2"></i> Online Users
+            <span id="onlineCount" class="ml-auto bg-neon-purple rounded-full px-2 py-1 text-xs">0</span>
+          </h3>
+        </div>
+        <div id="onlineUsers" class="p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-150px)]">
+          <!-- Users will be added here -->
+        </div>
+      </div>
+
+      <!-- Chat Container -->
+      <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- Pinned Messages -->
+        <div id="pinnedMessages" class="bg-cosmic-purple border-b-2 border-neon-blue p-3 hidden">
+          <div class="flex items-center text-neon-yellow">
+            <i class="fas fa-thumbtack mr-2 animate-pulse-slow"></i>
+            <span class="font-semibold">Pinned Message</span>
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-deep-space bg-opacity-80 backdrop-blur-sm">
+          <!-- Welcome message -->
+          <div class="text-center py-8 animate-neon-flicker">
+            <div class="inline-block px-6 py-3 bg-gradient-to-r from-neon-purple to-neon-blue rounded-full">
+              <h2 class="text-xl font-orbitron text-white">Welcome to Neon Pulse Chat</h2>
+              <p class="text-sm text-neon-green">Your messages will appear here</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Typing Indicator -->
+        <div id="typingIndicator" class="px-4 py-2 bg-cosmic-purple text-neon-green italic text-sm hidden">
+          <div class="flex items-center">
+            <div class="typing-dots flex space-x-1 mr-2">
+              <div class="w-2 h-2 bg-neon-green rounded-full animate-bounce" style="animation-delay: 0s"></div>
+              <div class="w-2 h-2 bg-neon-green rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+              <div class="w-2 h-2 bg-neon-green rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+            </div>
+            <span id="typingUsers"></span>
+          </div>
+        </div>
+
+        <!-- Message Input - Now properly responsive -->
+        <div class="bg-cosmic-purple border-t-2 border-neon-purple p-4 neon-border">
+          <form id="messageForm" class="flex flex-col md:flex-row gap-3 items-stretch">
+            <div class="flex-1 relative message-input-container">
+              <input type="text" id="messageInput" autocomplete="off" 
+                class="message-input w-full px-4 py-3 md:py-4 bg-deep-space border-2 border-neon-purple rounded-xl focus:outline-none focus:border-neon-pink text-white placeholder-neon-blue transition-all font-medium"
+                placeholder="Send a cosmic message...">
+              <div class="absolute right-3 top-3 flex space-x-2">
+                <button type="button" class="emoji-btn p-2 text-neon-yellow hover:text-neon-pink transition-all">
+                  <i class="far fa-smile"></i>
+                </button>
+                <label for="imageUpload" class="cursor-pointer p-2 text-neon-blue hover:text-neon-green transition-all">
+                  <i class="fas fa-image"></i>
+                  <input type="file" id="imageUpload" accept="image/*" class="hidden">
+                </label>
+                <button type="button" class="gif-btn p-2 text-neon-pink hover:text-neon-yellow transition-all">
+                  <i class="fas fa-film"></i>
+                </button>
+              </div>
+            </div>
+            <button type="submit" 
+              class="message-submit-btn px-6 bg-gradient-to-r from-neon-blue to-neon-green text-deep-space font-bold py-3 md:py-4 rounded-xl hover:shadow-lg hover:shadow-neon-blue/30 focus:outline-none transition-all transform hover:scale-105">
+              <i class="fas fa-paper-plane"></i>
+              <span class="ml-2 md:hidden">Send</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Emoji Picker Modal -->
+  <div id="emojiModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
+    <div class="bg-deep-space border-2 border-neon-green rounded-xl p-4 w-80 max-w-full">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-neon-yellow font-semibold">Select Emoji</h3>
+        <button id="closeEmoji" class="text-neon-pink hover:text-neon-blue">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="grid grid-cols-8 gap-2" id="emojiContainer">
+        <!-- Emojis will be inserted here -->
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // Create floating particles
+    document.addEventListener('DOMContentLoaded', function() {
+      const particlesContainer = document.getElementById('particles');
+      const particleCount = window.innerWidth < 768 ? 30 : 50;
+      
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.classList.add('particle');
+        
+        // Random properties
+        const size = Math.random() * 5 + 1;
+        const posX = Math.random() * window.innerWidth;
+        const posY = Math.random() * window.innerHeight;
+        const delay = Math.random() * 5;
+        const duration = Math.random() * 10 + 10;
+        
+        // Apply styles
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        particle.style.left = `${posX}px`;
+        particle.style.top = `${posY}px`;
+        particle.style.opacity = Math.random() * 0.5 + 0.1;
+        particle.style.animation = `float ${duration}s ease-in-out ${delay}s infinite`;
+        
+        // Random neon color
+        const colors = ['neon-pink', 'neon-blue', 'neon-purple', 'neon-green', 'neon-yellow'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        particle.style.backgroundColor = `var(--tw-${randomColor})`;
+        
+        particlesContainer.appendChild(particle);
+      }
+      
+      // Sample emojis for the picker
+      const emojis = ['😀', '😂', '😍', '🤔', '😎', '🥳', '😢', '😡', '🤯', '👻', '💩', '👍', '👎', '❤️', '🔥', '🎉', '🙏', '🚀'];
+      const emojiContainer = document.getElementById('emojiContainer');
+      
+      emojis.forEach(emoji => {
+        const emojiBtn = document.createElement('button');
+        emojiBtn.textContent = emoji;
+        emojiBtn.className = 'text-2xl hover:scale-125 transition-transform p-1';
+        emojiBtn.addEventListener('click', () => {
+          document.getElementById('messageInput').value += emoji;
+          document.getElementById('emojiModal').classList.add('hidden');
+        });
+        emojiContainer.appendChild(emojiBtn);
+      });
+      
+      // Emoji picker toggle
+      document.querySelector('.emoji-btn').addEventListener('click', () => {
+        document.getElementById('emojiModal').classList.toggle('hidden');
+      });
+      
+      document.getElementById('closeEmoji').addEventListener('click', () => {
+        document.getElementById('emojiModal').classList.add('hidden');
+      });
+      
+      // Online users toggle for mobile
+      const onlineUsersToggle = document.getElementById('onlineUsersToggle');
+      const onlineUsersContainer = document.getElementById('onlineUsersContainer');
+      
+      onlineUsersToggle.addEventListener('click', () => {
+        onlineUsersContainer.classList.toggle('active');
+      });
+      
+      // Sample online users (would be populated by your actual chat logic)
+      const onlineUsers = [
+        { name: 'CosmicTraveler', status: 'online' },
+        { name: 'NeonDreamer', status: 'online' },
+        { name: 'QuantumExplorer', status: 'idle' },
+        { name: 'Starlight', status: 'online' },
+        { name: 'GalacticHero', status: 'dnd' }
+      ];
+      
+      const onlineUsersList = document.getElementById('onlineUsers');
+      const onlineCount = document.getElementById('onlineCount');
+      
+      onlineUsers.forEach(user => {
+        const userElement = document.createElement('div');
+        userElement.className = 'flex items-center p-2 rounded-lg hover:bg-neon-purple/20 transition-colors';
+        
+        let statusColor = 'bg-neon-green';
+        if (user.status === 'idle') statusColor = 'bg-neon-yellow';
+        if (user.status === 'dnd') statusColor = 'bg-neon-pink';
+        
+        userElement.innerHTML = `
+          <div class="relative">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center text-xs font-bold">
+              ${user.name.charAt(0).toUpperCase()}
+            </div>
+            <div class="absolute bottom-0 right-0 w-3 h-3 ${statusColor} rounded-full border-2 border-deep-space"></div>
+          </div>
+          <span class="ml-3 font-medium">${user.name}</span>
+        `;
+        
+        onlineUsersList.appendChild(userElement);
+      });
+      
+      onlineCount.textContent = onlineUsers.filter(u => u.status === 'online').length;
+    });
+    
+    // Theme toggle functionality
+    document.getElementById('themeToggle').addEventListener('click', function() {
+      document.documentElement.classList.toggle('dark');
+      this.innerHTML = document.documentElement.classList.contains('dark') ? 
+        '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+    });
+  </script>
+  <script src="/js/script.js"></script>
+</body>
+</html>
