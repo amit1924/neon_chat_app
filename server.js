@@ -4,13 +4,88 @@ const multer = require("multer");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
 const sanitizeHtml = require("sanitize-html");
+const fetch = (...args) =>
+  import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+///////////////
+
+class AIService {
+  static async generateResponse(prompt, context = []) {
+    try {
+      const payload = {
+        model: "gpt-3.5-turbo-16k", // or "gpt-4" for more depth
+        messages: [
+          {
+            role: "system",
+            content: `
+<div style="line-height:1.6; word-spacing:0.15em;">
+  You are a vibrant, detail-oriented AI assistant. For <strong>every response</strong>, follow these rules:
+
+  <span style="color:#00FFCC; font-weight:bold;">• Formatting Guidelines</span><br>
+  - <span style="color:#FF00FF;">Headings</span>: Bold with neon colors. Example:<br>
+    <span style="color:#FF00FF; font-weight:bold;">Topic Name</span><br>
+  - <span style="color:#33FF33;">Bullet Points</span>: <strong>10+ per response</strong>, each 1–2 sentences.<br>
+  - <span style="color:#9966FF;">Highlighting</span>:<br>
+    • <span style="color:#FFCC00;">Key terms</span> in gold.<br>
+    • <span style="color:#00FFFF;">Technical jargon</span> in cyan.<br>
+    • <span style="color:#FF3366;">Names/dates</span> in pink.<br><br>
+
+  <span style="color:#00FFCC; font-weight:bold;">• Content Rules</span><br>
+  1. <span style="color:#FF9900;">Define the topic</span> clearly in the first bullet.<br>
+  2. <span style="color:#33FF33;">Add 2–3 use cases</span> or real-world applications.<br>
+  3. <span style="color:#9966FF;">Include trivia/history</span> (e.g., "Invented by X in Y").<br>
+  4. <span style="color:#00FFFF;">Compare/contrast</span> with related topics if relevant.<br>
+  5. <span style="color:#FF00FF;">End with a fun fact</span> or surprising detail.<br><br>
+
+  <span style="color:#00FFCC; font-weight:bold;">• Length Requirement</span><br>
+  Your response must be <strong>at least 200 words</strong> and contain <strong>10+ bullet points</strong>.<br><br>
+
+  <em>Wrap all of your HTML output in this same &lt;div&gt; so that line-height and word-spacing are applied.</em>
+</div>
+            `.trim(),
+          },
+          // map recent chat context into messages array
+          ...context.map((msg) => ({
+            role: msg.username === "AI" ? "assistant" : "user",
+            content: msg.text,
+          })),
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 12000,
+      };
+
+      const response = await fetch("https://text.pollinations.ai/openai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content;
+    } catch (error) {
+      console.error("AI Error:", error);
+      return `<div style="color:#FF0000; font-weight:bold; line-height:1.6; word-spacing:0.15em;">
+                ⚠️ Error generating response. Details: ${error.message}
+              </div>`;
+    }
+  }
+}
+
 // In-memory storage for messages and users
 const chatRooms = {}; // Structure: { roomName: { messages: [], users: [], pinnedMessages: [] } }
 const messageRateLimits = {};
+const userSoundSettings = {}; // Store user sound preferences
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -87,6 +162,15 @@ io.on("connection", (socket) => {
         };
       }
 
+      // Initialize user sound settings with defaults
+      if (!userSoundSettings[username]) {
+        userSoundSettings[username] = {
+          enabled: true,
+          volume: 0.5,
+          sound: "default",
+        };
+      }
+
       // Add user to room
       if (!chatRooms[room].users.some((u) => u.username === username)) {
         chatRooms[room].users.push({
@@ -108,13 +192,16 @@ io.on("connection", (socket) => {
 
       // Send message history
       chatRooms[room].messages.forEach((msg) => {
-        socket.emit("message", msg);
+        socket.emit("historyMessage", msg);
       });
 
       // Send pinned messages
       chatRooms[room].pinnedMessages.forEach((msg) => {
         socket.emit("pinnedMessage", msg);
       });
+
+      // Send sound settings to the user
+      socket.emit("soundSettings", userSoundSettings[username]);
 
       // Broadcast when a user connects
       const joinMessage = {
@@ -176,10 +263,130 @@ io.on("connection", (socket) => {
       };
 
       chatRooms[socket.room].messages.push(message);
-      io.to(socket.room).emit("message", message);
+
+      // Emit message with sound notification flag
+      io.to(socket.room).emit("message", {
+        ...message,
+        playSound: message.username !== socket.username, // Don't play sound for sender
+      });
     } catch (error) {
       console.error("Chat message error:", error);
       socket.emit("error", error.message);
+    }
+  });
+
+  // Handle sound settings updates
+  socket.on("updateSoundSettings", (settings) => {
+    try {
+      if (!socket.username) return;
+
+      // Validate settings
+      if (
+        typeof settings.enabled !== "boolean" ||
+        typeof settings.volume !== "number" ||
+        settings.volume < 0 ||
+        settings.volume > 1 ||
+        !["default", "chime", "bell", "pop"].includes(settings.sound)
+      ) {
+        throw new Error("Invalid sound settings");
+      }
+
+      // Update user settings
+      userSoundSettings[socket.username] = settings;
+
+      // Confirm update to user
+      socket.emit("soundSettingsUpdated", settings);
+    } catch (error) {
+      console.error("Sound settings error:", error);
+      socket.emit("error", error.message);
+    }
+  });
+
+  // Handle AI requests
+  // socket.on("aiRequest", async (prompt, callback) => {
+  //   try {
+  //     if (!socket.username || !socket.room) {
+  //       throw new Error("You must be in a room to use AI");
+  //     }
+
+  //     // Get last 5 messages for context (excluding system messages)
+  //     const context = chatRooms[socket.room]?.messages
+  //       .filter((msg) => !msg.isSystem)
+  //       .slice(-5)
+  //       .map((msg) => ({
+  //         username: msg.username,
+  //         text: msg.text,
+  //       }));
+
+  //     const aiResponse = await AIService.generateResponse(prompt, context);
+
+  //     const message = {
+  //       id: uuidv4(),
+  //       username: "AI",
+  //       text: aiResponse,
+  //       time: new Date().toLocaleTimeString(),
+  //       isSystem: false,
+  //     };
+
+  //     chatRooms[socket.room].messages.push(message);
+  //     io.to(socket.room).emit("message", message);
+
+  //     // Callback to handle client-side response
+  //     if (typeof callback === "function") {
+  //       callback({ success: true });
+  //     }
+  //   } catch (error) {
+  //     console.error("AI request error:", error);
+  //     if (typeof callback === "function") {
+  //       callback({ error: error.message });
+  //     } else {
+  //       socket.emit("error", error.message);
+  //     }
+  //   }
+  // });
+
+  // Handle AI requests
+  socket.on("aiRequest", async (prompt, callback) => {
+    try {
+      if (!socket.username || !socket.room) {
+        throw new Error("You must be in a room to use AI");
+      }
+
+      // Get last 5 messages for context (excluding system messages)
+      const context = chatRooms[socket.room]?.messages
+        .filter((msg) => !msg.isSystem)
+        .slice(-5)
+        .map((msg) => ({
+          username: msg.username,
+          text: msg.text,
+        }));
+
+      const aiResponse = await AIService.generateResponse(prompt, context);
+
+      const message = {
+        id: uuidv4(),
+        username: "AI",
+        text: aiResponse,
+        time: new Date().toLocaleTimeString(),
+        isSystem: false,
+      };
+
+      // chatRooms[socket.room].messages.push(message);
+
+      // // Send AI message ONLY to the requesting user
+      socket.emit("message", message);
+
+      // Callback to handle client-side response
+      if (typeof callback === "function") {
+        callback({ success: true });
+      }
+    } catch (error) {
+      console.error("AI request error:", error);
+      if (typeof callback === "function") {
+        callback({ error: error.message });
+      } else {
+        socket.emit("error", error.message);
+      }
     }
   });
 
@@ -275,36 +482,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("error", (error) => {
-    // Ignore "not found" messages completely
-    if (error.includes("not found")) return;
-
-    // Only show other errors
-    const errorDiv = document.createElement("div");
-    errorDiv.className =
-      "bg-red-900 text-white p-2 rounded-lg text-center text-xs";
-    errorDiv.textContent = error;
-    messagesDiv.appendChild(errorDiv);
-    scrollToBottom();
-  });
-
-  socket.on("typing", (isTyping) => {
-    try {
-      if (typeof isTyping !== "boolean") return;
-
-      const user = users[socket.id];
-      if (!user || !user.room) return;
-
-      // Broadcast to everyone in the room except the sender
-      socket.broadcast.to(user.room).emit("typingStatus", {
-        username: user.username,
-        isTyping: isTyping,
-      });
-    } catch (error) {
-      console.error("Typing indicator error:", error);
-    }
-  });
-
   // Handle message pinning
   socket.on("pinMessage", (messageId) => {
     try {
@@ -329,6 +506,26 @@ io.on("connection", (socket) => {
       console.error("Pin message error:", error);
       socket.emit("error", error.message);
     }
+  });
+
+  // Handle “clear history” requests
+  socket.on("clearHistory", () => {
+    const room = socket.room;
+    if (!room || !chatRooms[room]) return;
+
+    // Wipe out both message lists
+    chatRooms[room].messages = [];
+    chatRooms[room].pinnedMessages = [];
+
+    // Notify everyone (optional)
+    const systemMsg = {
+      id: uuidv4(),
+      username: "ChatBot",
+      text: `🚮 Chat history was cleared by ${socket.username}`,
+      time: new Date().toLocaleTimeString(),
+      isSystem: true,
+    };
+    io.to(room).emit("message", systemMsg);
   });
 
   // Handle read receipts

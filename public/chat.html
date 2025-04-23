@@ -60,6 +60,42 @@
       padding: 0.25rem;
       border-radius: 0.25rem;
     }
+    .ai-prompt {
+      position: relative;
+    }
+    .ai-prompt-button {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(99, 102, 241, 0.7);
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .ai-prompt-button:hover {
+      background: rgba(99, 102, 241, 1);
+    }
+    .ai-response {
+      border-left: 3px solid #7c3aed;
+      padding-left: 10px;
+      margin-top: 5px;
+      background: rgba(124, 58, 237, 0.1);
+    }
+    .fa-spin {
+      animation: fa-spin 2s infinite linear;
+    }
+    @keyframes fa-spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(359deg); }
+    }
   </style>
 </head>
 <body class="bg-gray-900 text-purple-100 min-h-screen">
@@ -76,6 +112,12 @@
         <span id="roomName" class="ml-3 sm:ml-6 text-purple-300 uppercase tracking-wide text-sm sm:text-base"></span>
       </div>
       <div class="flex items-center space-x-3">
+        <button id="soundToggleBtn" class="text-purple-300 hover:text-purple-100" title="Toggle sound">
+          <i class="fas fa-volume-up"></i>
+        </button>
+        <button id="aiHelpBtn" class="text-purple-300 hover:text-purple-100" title="AI Help">
+          <i class="fas fa-robot"></i>
+        </button>
         <button id="clearHistoryBtn" class="text-purple-300 hover:text-purple-100" title="Clear chat history">
           <i class="fas fa-trash-alt"></i>
         </button>
@@ -122,8 +164,13 @@
 
         <!-- Message Form -->
         <form id="messageForm" class="p-3 sm:p-4 bg-gray-800 border-t border-purple-900 flex space-x-2">
-          <input id="messageInput" type="text" placeholder="Type your message..." 
-            class="flex-1 px-3 py-2 sm:px-4 sm:py-2 rounded-lg bg-gray-700 border border-purple-800 text-purple-100 placeholder-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base">
+          <div class="ai-prompt flex-1 relative">
+            <input id="messageInput" type="text" placeholder="Type your message..." 
+              class="w-full px-3 py-2 sm:px-4 sm:py-2 rounded-lg bg-gray-700 border border-purple-800 text-purple-100 placeholder-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base">
+            <button type="button" id="aiPromptButton" class="ai-prompt-button" title="Ask AI">
+              <i class="fas fa-magic"></i>
+            </button>
+          </div>
           <button type="submit" class="bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-2 sm:px-4 sm:py-2 rounded-lg text-white hover:opacity-90 text-sm sm:text-base">
             <i class="fas fa-paper-plane"></i>
           </button>
@@ -134,7 +181,89 @@
         </form>
       </main>
     </div>
+
+    <!-- AI Help Modal -->
+    <div id="aiHelpModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-gray-800 rounded-lg max-w-md w-full p-6 border border-purple-700">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold text-purple-300">
+            <i class="fas fa-robot mr-2"></i>AI Assistant Help
+          </h3>
+          <button id="closeAiHelpModal" class="text-purple-300 hover:text-white">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="text-sm text-purple-100 mb-4">
+          <p class="mb-2">The AI assistant can help you with:</p>
+          <ul class="list-disc pl-5 space-y-1">
+            <li>Answering questions about the chat</li>
+            <li>Generating creative responses</li>
+            <li>Providing information on various topics</li>
+            <li>Helping with conversation starters</li>
+          </ul>
+          <p class="mt-3">To use the AI, either:</p>
+          <ul class="list-disc pl-5 space-y-1">
+            <li>Click the magic wand button next to the message input</li>
+            <li>Type <span class="bg-purple-900 px-2 py-1 rounded">@AI</span> followed by your question</li>
+          </ul>
+        </div>
+        <div class="flex justify-end">
+          <button id="gotItButton" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg">
+            Got it!
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sound Settings Modal -->
+    <div id="soundSettingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-gray-800 rounded-lg max-w-md w-full p-6 border border-purple-700">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-bold text-purple-300">
+            <i class="fas fa-volume-up mr-2"></i>Sound Settings
+          </h3>
+          <button id="closeSoundSettingsModal" class="text-purple-300 hover:text-white">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="text-sm text-purple-100 mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <label for="notificationSoundToggle" class="mr-2">Notification sounds:</label>
+            <div class="relative inline-block w-12 mr-2 align-middle select-none">
+              <input type="checkbox" id="notificationSoundToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+              <label for="notificationSoundToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+            </div>
+          </div>
+          <div class="flex items-center justify-between mb-3">
+            <label for="soundVolume" class="mr-2">Volume:</label>
+            <input type="range" id="soundVolume" min="0" max="1" step="0.1" value="0.5" class="w-32">
+            <span id="volumeValue" class="ml-2 w-8 text-center">50%</span>
+          </div>
+          <div class="mt-4">
+            <label for="soundSelect" class="block mb-2">Notification sound:</label>
+            <select id="soundSelect" class="w-full bg-gray-700 border border-purple-800 text-purple-100 p-2 rounded-lg">
+              <option value="default">Default Ping</option>
+              <option value="chime">Chime</option>
+              <option value="bell">Bell</option>
+              <option value="pop">Pop</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <button id="testSoundBtn" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg mr-2">
+            Test Sound
+          </button>
+          <button id="saveSoundSettingsBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg">
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <audio id="notificationSound" preload="auto">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3" type="audio/mpeg">
+  </audio>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -161,11 +290,136 @@
       const imageUpload = document.getElementById("imageUpload");
       const onlineCount = document.getElementById("onlineCount");
       const mobileOnlineCount = document.getElementById("mobileOnlineCount");
+      const aiHelpBtn = document.getElementById("aiHelpBtn");
+      const aiPromptButton = document.getElementById("aiPromptButton");
+      const aiHelpModal = document.getElementById("aiHelpModal");
+      const closeAiHelpModal = document.getElementById("closeAiHelpModal");
+      const gotItButton = document.getElementById("gotItButton");
+
+
+      //sound button
+// —— 1) grab your DOM nodes once —— 
+const soundToggleBtn          = document.getElementById("soundToggleBtn");
+const notificationSoundToggle = document.getElementById("notificationSoundToggle");
+const soundVolumeSlider      = document.getElementById("soundVolume");
+const soundSelect            = document.getElementById("soundSelect");
+const notificationAudio       = document.getElementById("notificationSound");
+const testSoundBtn           = document.getElementById("testSoundBtn");
+const saveSoundSettingsBtn   = document.getElementById("saveSoundSettingsBtn");
+const soundSettingsModal     = document.getElementById("soundSettingsModal");
+const closeSoundSettingsBtn  = document.getElementById("closeSoundSettingsModal");
+
+// —— 2) define your sound files & state —— 
+const soundOptions = {
+  default: "/sound/default.mp3",
+  chime:   "/sound/chime.mp3",
+  bell:    "/sound/bell.mp3",
+  pop:     "/sound/pop.mp3",
+};
+let soundSettings = { enabled: true, volume: 0.5, sound: "default" };
+
+// —— 3) implement load/save/icon/play —— 
+function loadSoundSettings() {
+  const saved = localStorage.getItem("neonChatSoundSettings");
+  if (saved) Object.assign(soundSettings, JSON.parse(saved));
+  notificationSoundToggle.checked = soundSettings.enabled;
+  soundVolumeSlider.value       = soundSettings.volume;
+  soundSelect.value             = soundSettings.sound;
+  notificationAudio.volume      = soundSettings.volume;
+  updateSoundToggleIcon();
+}
+
+function saveSoundSettings() {
+  localStorage.setItem("neonChatSoundSettings", JSON.stringify(soundSettings));
+}
+
+function updateSoundToggleIcon() {
+  const icon = soundToggleBtn.querySelector("i");
+  icon.classList.toggle("fa-volume-up",    soundSettings.enabled);
+  icon.classList.toggle("fa-volume-mute",  !soundSettings.enabled);
+}
+
+function playNotificationSound() {
+  if (!soundSettings.enabled) return;
+  notificationAudio.src    = soundOptions[soundSettings.sound];
+  notificationAudio.volume = soundSettings.volume;
+  notificationAudio.play().catch(console.error);
+}
+
+// —— 4) wire up your event listeners —— 
+// Toggle mute/unmute icon & state
+soundToggleBtn.addEventListener("click", () => {
+  soundSettings.enabled = !soundSettings.enabled;
+  notificationSoundToggle.checked = soundSettings.enabled;
+  updateSoundToggleIcon();
+  saveSoundSettings();
+});
+
+// Live‐sync the checkbox in the modal
+notificationSoundToggle.addEventListener("change", () => {
+  soundSettings.enabled = notificationSoundToggle.checked;
+  updateSoundToggleIcon();
+  saveSoundSettings();
+});
+
+// Volume slider
+soundVolumeSlider.addEventListener("input", () => {
+  soundSettings.volume = parseFloat(soundVolumeSlider.value);
+  notificationAudio.volume = soundSettings.volume;
+  saveSoundSettings();
+});
+
+// Effect selector
+soundSelect.addEventListener("change", () => {
+  soundSettings.sound = soundSelect.value;
+  saveSoundSettings();
+});
+
+// Test button
+testSoundBtn.addEventListener("click", playNotificationSound);
+
+// Save button in modal
+saveSoundSettingsBtn.addEventListener("click", () => {
+  saveSoundSettings();
+  soundSettingsModal.classList.add("hidden");
+});
+
+// Close modal
+closeSoundSettingsBtn.addEventListener("click", () => {
+  soundSettingsModal.classList.add("hidden");
+});
+
+// —— 5) initialize on load —— 
+loadSoundSettings();
+
+
+      // Sound settings modal events
+      soundToggleBtn.addEventListener("click", () => {
+        soundSettingsModal.classList.remove("hidden");
+      });
+
+      closeSoundSettingsModal.addEventListener("click", () => {
+        soundSettingsModal.classList.add("hidden");
+      });
+
+      soundVolume.addEventListener("input", () => {
+        const volume = parseFloat(soundVolume.value);
+        volumeValue.textContent = `${Math.round(volume * 100)}%`;
+      });
+
+      testSoundBtn.addEventListener("click", playNotificationSound);
+
+      saveSoundSettingsBtn.addEventListener("click", () => {
+        saveSoundSettings();
+        soundSettingsModal.classList.add("hidden");
+      });
 
       // Track currently typing users
       const typingUsers = new Set();
       // Track messages that are currently being edited
       const editingMessages = new Map();
+      // Track AI prompts in progress
+      const aiPromptsInProgress = new Set();
 
       // Storage key for messages
       const STORAGE_KEY = `neonChat_${room}_messages`;
@@ -249,20 +503,13 @@
 
       // Clear chat history
       function clearChatHistory() {
-        if (confirm("Are you sure you want to clear all chat history in this room?")) {
-          localStorage.removeItem(STORAGE_KEY);
-          messagesDiv.innerHTML = '';
-          
-          // Display a system message
-          const systemMsg = {
-            isSystem: true,
-            text: "Chat history has been cleared",
-            timestamp: new Date()
-          };
-          displayMessage(systemMsg, false);
-        }
+        if (!confirm("Are you sure?")) return;
+        socket.emit("clearHistory");
+        localStorage.removeItem(STORAGE_KEY);
+        messagesDiv.innerHTML = '';
+        displayMessage({ isSystem: true, text: "Chat history has been cleared" }, false);
       }
-
+      
       // Generate a unique ID for messages
       function generateMessageId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -321,6 +568,10 @@
             messageDiv.appendChild(actionsDiv);
           } else {
             contentDiv.className += " mr-auto bg-gray-700";
+            // Play notification sound for incoming messages (except our own)
+            if (soundSettings.enabled && data.username !== username) {
+              playNotificationSound();
+            }
           }
           
           if (data.image) {
@@ -350,16 +601,36 @@
           } else {
             // Regular text message
             let editedIndicator = data.edited ? '<span class="text-xs text-purple-400 italic">(edited)</span>' : '';
-            contentDiv.innerHTML = `
-              <div class="flex justify-between items-baseline">
-                <strong class="${data.username === username ? 'text-pink-200' : 'text-purple-200'} text-sm">${data.username}</strong>
-                <div>
-                  ${editedIndicator}
-                  <span class="text-xs text-purple-400 ml-2">${new Date(data.timestamp || Date.now()).toLocaleTimeString()}</span>
+            
+            // Special formatting for AI messages
+            let messageContent = data.text || '';
+            if (data.username === "AI") {
+              messageContent = `
+                <div class="flex justify-between items-baseline">
+                  <strong class="text-purple-200 text-sm">${data.username}</strong>
+                  <div>
+                    ${editedIndicator}
+                    <span class="text-xs text-purple-400 ml-2">${new Date(data.timestamp || Date.now()).toLocaleTimeString()}</span>
+                  </div>
                 </div>
-              </div>
-              <div class="text-sm message-text mt-1">${data.text || ''}</div>
-            `;
+                <div class="ai-response text-sm mt-1 p-2 rounded">
+                  ${messageContent}
+                </div>
+              `;
+            } else {
+              messageContent = `
+                <div class="flex justify-between items-baseline">
+                  <strong class="${data.username === username ? 'text-pink-200' : 'text-purple-200'} text-sm">${data.username}</strong>
+                  <div>
+                    ${editedIndicator}
+                    <span class="text-xs text-purple-400 ml-2">${new Date(data.timestamp || Date.now()).toLocaleTimeString()}</span>
+                  </div>
+                </div>
+                <div class="text-sm message-text mt-1">${messageContent}</div>
+              `;
+            }
+            
+            contentDiv.innerHTML = messageContent;
           }
         }
         
@@ -382,63 +653,65 @@
           saveMessage(data);
         }
       }
-// Start editing a message
-function startEditingMessage(messageId) {
-  // If already editing another message, cancel that first
-  if (editingMessages.size > 0) {
-    const [existingId, existingCallback] = editingMessages.entries().next().value;
-    cancelEditMessage(existingId, existingCallback);
-  }
 
-  const messageElement = document.querySelector(`[data-message-id="${messageId}"] .message-text`);
-  if (!messageElement) return; // Silently return if message not found
+      // Start editing a message
+      function startEditingMessage(messageId) {
+        // If already editing another message, cancel that first
+        if (editingMessages.size > 0) {
+          const [existingId, existingCallback] = editingMessages.entries().next().value;
+          cancelEditMessage(existingId, existingCallback);
+        }
 
-  const originalContent = messageElement.textContent;
-  const input = document.createElement("input");
-  input.className = "edit-input";
-  input.value = originalContent;
-  
-  const saveEdit = () => {
-    const newContent = input.value.trim();
-    if (newContent && newContent !== originalContent) {
-      socket.emit("editMessage", {
-        messageId,
-        newContent,
-        username
-      });
-    }
-    editingMessages.delete(messageId);
-    if (messageElement.parentNode) {
-      messageElement.textContent = newContent || originalContent;
-      input.remove();
-    }
-  };
+        const messageElement = document.querySelector(`[data-message-id="${messageId}"] .message-text`);
+        if (!messageElement) return; // Silently return if message not found
 
-  const cancelEdit = () => {
-    editingMessages.delete(messageId);
-    if (messageElement.parentNode) {
-      messageElement.textContent = originalContent;
-      input.remove();
-    }
-  };
+        const originalContent = messageElement.textContent;
+        const input = document.createElement("input");
+        input.className = "edit-input";
+        input.value = originalContent;
+        
+        const saveEdit = () => {
+          const newContent = input.value.trim();
+          if (newContent && newContent !== originalContent) {
+            socket.emit("editMessage", {
+              id: messageId,
+              text: newContent
+            });
+          }
+          editingMessages.delete(messageId);
+          if (messageElement.parentNode) {
+            messageElement.textContent = newContent || originalContent;
+            input.remove();
+          }
+        };
 
-  input.addEventListener("blur", saveEdit);
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      saveEdit();
-    } else if (e.key === "Escape") {
-      cancelEdit();
-    }
-  });
+        const cancelEdit = () => {
+          editingMessages.delete(messageId);
+          if (messageElement.parentNode) {
+            messageElement.textContent = originalContent;
+            input.remove();
+          }
+        };
 
-  // Replace the text with the input field
-  messageElement.textContent = '';
-  messageElement.appendChild(input);
-  input.focus();
-  
-  // Store the cancel callback
-  editingMessages.set(messageId, cancelEdit);
-}    // Cancel editing a message
+        input.addEventListener("blur", saveEdit);
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            saveEdit();
+          } else if (e.key === "Escape") {
+            cancelEdit();
+          }
+        });
+
+        // Replace the text with the input field
+        messageElement.textContent = '';
+        messageElement.appendChild(input);
+        input.focus();
+        
+        // Store the cancel callback
+        editingMessages.set(messageId, cancelEdit);
+      }
+
+      // Cancel editing a message
       function cancelEditMessage(messageId, cancelCallback) {
         if (cancelCallback) {
           cancelCallback();
@@ -446,22 +719,55 @@ function startEditingMessage(messageId) {
         editingMessages.delete(messageId);
       }
 
-    // Delete a message
-function deleteMessage(messageId) {
-  socket.emit("deleteMessage", {
-    messageId,
-    username
-  });
-  
-  // Remove from DOM immediately
-  const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
-  if (messageElement) {
-    messageElement.remove();
-  }
-  
-  // Remove from storage
-  removeMessageFromStorage(messageId);
-}   // Handle image upload
+      // Delete a message
+      function deleteMessage(messageId) {
+        socket.emit("deleteMessage", messageId);
+        
+        // Remove from DOM immediately
+        const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (messageElement) {
+          messageElement.remove();
+        }
+        
+        // Remove from storage
+        removeMessageFromStorage(messageId);
+      }
+
+      function handleAIPrompt() {
+        const prompt = messageInput.value.trim();
+        if (!prompt) return;
+      
+        // Check if we're already processing this prompt
+        if (aiPromptsInProgress.has(prompt)) return;
+        aiPromptsInProgress.add(prompt);
+      
+        // Show loading state
+        const originalButtonHTML = aiPromptButton.innerHTML;
+        aiPromptButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        aiPromptButton.disabled = true;
+      
+        // Send AI request
+        socket.emit("aiRequest", prompt, (response) => {
+            // Remove from in-progress set
+            aiPromptsInProgress.delete(prompt);
+            
+            // Restore button state
+            aiPromptButton.innerHTML = originalButtonHTML;
+            aiPromptButton.disabled = false;
+        
+            if (response.error) {
+                displayMessage({
+                    isSystem: true,
+                    text: `AI Error: ${response.error}`,
+                    timestamp: new Date()
+                }, false);
+            } else {
+                // Clear the input if the AI responded successfully
+                messageInput.value = "";
+            }
+        });
+      }
+
       imageUpload.addEventListener("change", (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -496,6 +802,8 @@ function deleteMessage(messageId) {
               id: generateMessageId()
             };
             socket.emit("chatMessage", messageData);
+            // Clear the input after successful upload
+            e.target.value = "";
           }
         })
         .catch(error => {
@@ -506,8 +814,7 @@ function deleteMessage(messageId) {
             timestamp: new Date()
           };
           displayMessage(errorMsg, false);
-        })
-        .finally(() => {
+          // Clear the input even if there's an error
           e.target.value = "";
         });
       });
@@ -536,6 +843,23 @@ function deleteMessage(messageId) {
 
       // Clear history button
       clearHistoryBtn.addEventListener("click", clearChatHistory);
+
+      // AI Help button
+      aiHelpBtn.addEventListener("click", () => {
+        aiHelpModal.classList.remove("hidden");
+      });
+
+      // Close AI Help modal
+      closeAiHelpModal.addEventListener("click", () => {
+        aiHelpModal.classList.add("hidden");
+      });
+
+      gotItButton.addEventListener("click", () => {
+        aiHelpModal.classList.add("hidden");
+      });
+
+      // AI Prompt button
+      aiPromptButton.addEventListener("click", handleAIPrompt);
 
       // Typing indicators
       let typingTimeout;
@@ -588,6 +912,16 @@ function deleteMessage(messageId) {
         const message = messageInput.value.trim();
         if (!message) return;
         
+        // Check if this is an AI command
+        if (message.startsWith("@AI ") || message.startsWith("@ai ")) {
+          const prompt = message.substring(4).trim();
+          if (prompt) {
+            messageInput.value = prompt;
+            handleAIPrompt();
+          }
+          return;
+        }
+        
         const messageData = {
           username,
           text: message,
@@ -596,6 +930,7 @@ function deleteMessage(messageId) {
         };
         
         socket.emit("chatMessage", messageData);
+        // Clear the input after sending
         messageInput.value = "";
         
         if (isTyping) {
@@ -605,26 +940,42 @@ function deleteMessage(messageId) {
         }
       });
 
-      // Handle incoming messages
-      socket.on("message", (data) => {
-        displayMessage(data);
+     // handle history without saving
+socket.on("historyMessage", data => {
+  displayMessage(data, /* saveToStorage */ false);
+});
+
+// handle brand-new messages (from you or others) *and* save them
+socket.on("message", data => {
+  displayMessage(data, /* saveToStorage */ true);
+});
+
+
+      // Handle AI responses
+      socket.on("aiResponse", (response) => {
+        displayMessage({
+          username: "AI",
+          text: response,
+          timestamp: new Date(),
+          id: generateMessageId()
+        });
       });
 
       // Handle edited messages
       socket.on("messageEdited", (data) => {
         // If we're currently editing this message, cancel that
-        if (editingMessages.has(data.messageId)) {
-          const cancelCallback = editingMessages.get(data.messageId);
-          cancelEditMessage(data.messageId, cancelCallback);
+        if (editingMessages.has(data.id)) {
+          const cancelCallback = editingMessages.get(data.id);
+          cancelEditMessage(data.id, cancelCallback);
         }
         
         // Find the message in the DOM
-        const messageElement = document.querySelector(`[data-message-id="${data.messageId}"]`);
+        const messageElement = document.querySelector(`[data-message-id="${data.id}"]`);
         if (messageElement) {
           // Update the message content
           const messageTextElement = messageElement.querySelector(".message-text");
           if (messageTextElement) {
-            messageTextElement.textContent = data.newContent;
+            messageTextElement.textContent = data.text;
           }
           
           // Add edited indicator
@@ -635,18 +986,18 @@ function deleteMessage(messageId) {
         }
         
         // Update in storage
-        updateMessageInStorage(data.messageId, data.newContent);
+        updateMessageInStorage(data.id, data.text);
       });
 
       // Handle deleted messages
-      socket.on("messageDeleted", (data) => {
-        const messageElement = document.querySelector(`[data-message-id="${data.messageId}"]`);
+      socket.on("messageDeleted", (messageId) => {
+        const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
         if (messageElement) {
           messageElement.remove();
         }
         
         // Remove from storage
-        removeMessageFromStorage(data.messageId);
+        removeMessageFromStorage(messageId);
       });
 
       // Handle user list updates
