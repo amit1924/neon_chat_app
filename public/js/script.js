@@ -1,221 +1,664 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // Initialize theme toggle
-  initThemeToggle();
+  const params = new URLSearchParams(window.location.search);
+  const username = params.get("username") || "Guest";
+  const room = params.get("room") || "Lobby";
 
-  // Check which page we're on
-  if (document.getElementById("joinForm")) {
-    initJoinPage();
-  } else if (document.getElementById("messageForm")) {
-    initChatPage();
-  }
-});
-
-function initThemeToggle() {
-  const themeToggle =
-    document.getElementById("themeToggle") || createThemeToggle();
-  const currentTheme = localStorage.getItem("theme") || "dark";
-  document.documentElement.classList.add(currentTheme);
-  themeToggle.innerHTML =
-    currentTheme === "dark"
-      ? '<i class="fas fa-sun"></i>'
-      : '<i class="fas fa-moon"></i>';
-
-  themeToggle.addEventListener("click", () => {
-    const isDark = document.documentElement.classList.toggle("dark");
-    localStorage.setItem("theme", isDark ? "dark" : "light");
-    themeToggle.innerHTML = isDark
-      ? '<i class="fas fa-sun"></i>'
-      : '<i class="fas fa-moon"></i>';
-  });
-}
-
-function createThemeToggle() {
-  const themeToggle = document.createElement("button");
-  themeToggle.id = "themeToggle";
-  themeToggle.className =
-    "absolute top-4 right-4 p-2 rounded-full bg-gray-700 text-purple-300 hover:bg-gray-600";
-  document.body.appendChild(themeToggle);
-  return themeToggle;
-}
-
-function initJoinPage() {
-  const joinForm = document.getElementById("joinForm");
-  const usernameInput = document.getElementById("username");
-  const roomInput = document.getElementById("room");
-
-  // Load previous username if exists
-  const savedUsername = localStorage.getItem("username");
-  if (savedUsername) {
-    usernameInput.value = savedUsername;
-  }
-
-  joinForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-
-    const username = usernameInput.value.trim();
-    const room = roomInput.value.trim() || "general";
-
-    if (!username) return;
-
-    // Save username to localStorage
-    localStorage.setItem("username", username);
-
-    // Redirect to chat page with query params
-    window.location.href = `/chat?username=${encodeURIComponent(
-      username
-    )}&room=${encodeURIComponent(room)}`;
-  });
-}
-
-function initChatPage() {
-  // Get username and room from URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const username = urlParams.get("username");
-  const room = urlParams.get("room") || "general";
-
-  if (!username) {
-    window.location.href = "/";
-    return;
-  }
-
-  // Set room name in header
   document.getElementById("roomName").textContent = room;
-
-  // Connect to socket.io
   const socket = io();
 
-  // Join chat room
-  socket.emit("joinRoom", { username, room });
-
-  // DOM elements
+  const messagesDiv = document.getElementById("messages");
   const messageForm = document.getElementById("messageForm");
   const messageInput = document.getElementById("messageInput");
-  const messagesContainer = document.getElementById("messages");
   const typingIndicator = document.getElementById("typingIndicator");
-  const typingUsers = document.getElementById("typingUsers");
+  const typingUsersElement = document.getElementById("typingUsers");
+  const onlineUsersDesktop = document.getElementById("onlineUsersDesktop");
+  const onlineUsersMobile = document.getElementById("onlineUsersMobile");
+  const mobileMenuButton = document.getElementById("mobileMenuButton");
+  const closeMobileMenu = document.getElementById("closeMobileMenu");
+  const mobileUsersMenu = document.getElementById("mobileUsersMenu");
   const logoutBtn = document.getElementById("logoutBtn");
+  const clearHistoryBtn = document.getElementById("clearHistoryBtn");
   const imageUpload = document.getElementById("imageUpload");
-  const searchBtn = document.createElement("button");
+  const onlineCount = document.getElementById("onlineCount");
+  const mobileOnlineCount = document.getElementById("mobileOnlineCount");
+  const aiHelpBtn = document.getElementById("aiHelpBtn");
+  const aiPromptButton = document.getElementById("aiPromptButton");
+  const aiHelpModal = document.getElementById("aiHelpModal");
+  const closeAiHelpModal = document.getElementById("closeAiHelpModal");
+  const gotItButton = document.getElementById("gotItButton");
 
-  // Create online users panel
-  const onlineUsersList = document.createElement("div");
-  onlineUsersList.id = "onlineUsers";
-  onlineUsersList.className =
-    "hidden md:block w-64 bg-gray-800 border-l border-purple-900 p-4 overflow-y-auto";
-  document.querySelector(".flex-1").parentElement.classList.add("flex");
-  document.querySelector(".flex-1").parentElement.appendChild(onlineUsersList);
+  //sound button
+  // —— 1) grab your DOM nodes once ——
+  const soundToggleBtn = document.getElementById("soundToggleBtn");
+  const notificationSoundToggle = document.getElementById(
+    "notificationSoundToggle"
+  );
+  const soundVolumeSlider = document.getElementById("soundVolume");
+  const soundSelect = document.getElementById("soundSelect");
+  const notificationAudio = document.getElementById("notificationSound");
+  const testSoundBtn = document.getElementById("testSoundBtn");
+  const saveSoundSettingsBtn = document.getElementById("saveSoundSettingsBtn");
+  const soundSettingsModal = document.getElementById("soundSettingsModal");
+  const closeSoundSettingsBtn = document.getElementById(
+    "closeSoundSettingsModal"
+  );
 
-  // Create pinned messages container
-  const pinnedContainer = document.createElement("div");
-  pinnedContainer.id = "pinnedMessages";
-  pinnedContainer.className =
-    "bg-gray-800 border-b border-purple-900 p-3 hidden";
-  messagesContainer.parentElement.prepend(pinnedContainer);
+  // —— 2) define your sound files & state ——
+  const soundOptions = {
+    default: "/sound/default.mp3",
+    chime: "/sound/chime.mp3",
+    bell: "/sound/bell.mp3",
+    pop: "/sound/pop.mp3",
+  };
+  let soundSettings = { enabled: true, volume: 0.5, sound: "default" };
 
-  // Add search button to header
-  searchBtn.className = "ml-4 p-2 text-purple-300 hover:text-purple-100";
-  searchBtn.innerHTML = '<i class="fas fa-search"></i>';
-  document.querySelector("header > div").appendChild(searchBtn);
+  // —— 3) implement load/save/icon/play ——
+  function loadSoundSettings() {
+    const saved = localStorage.getItem("neonChatSoundSettings");
+    if (saved) Object.assign(soundSettings, JSON.parse(saved));
+    notificationSoundToggle.checked = soundSettings.enabled;
+    soundVolumeSlider.value = soundSettings.volume;
+    soundSelect.value = soundSettings.sound;
+    notificationAudio.volume = soundSettings.volume;
+    updateSoundToggleIcon();
+  }
 
-  // Add formatting toolbar
-  const formattingToolbar = document.createElement("div");
-  formattingToolbar.className = "flex space-x-2 mb-2 text-sm";
-  const formats = [
-    { icon: "bold", tag: "**", title: "Bold" },
-    { icon: "italic", tag: "_", title: "Italic" },
-    { icon: "strikethrough", tag: "~~", title: "Strikethrough" },
-    { icon: "code", tag: "`", title: "Inline Code" },
-    { icon: "link", tag: "[]()", title: "Link" },
-  ];
-
-  formats.forEach((format) => {
-    const btn = document.createElement("button");
-    btn.className = "p-1 text-purple-300 hover:text-purple-100";
-    btn.innerHTML = `<i class="fas fa-${format.icon}"></i>`;
-    btn.title = format.title;
-    btn.onclick = (e) => {
-      e.preventDefault();
-      insertText(format.tag);
-    };
-    formattingToolbar.appendChild(btn);
-  });
-
-  messageForm.parentElement.insertBefore(formattingToolbar, messageForm);
-
-  function insertText(tag) {
-    const input = messageInput;
-    const start = input.selectionStart;
-    const end = input.selectionEnd;
-    const selectedText = input.value.substring(start, end);
-    let textToInsert;
-
-    if (tag === "[]()") {
-      textToInsert = selectedText ? `[${selectedText}](url)` : "[](url)";
-    } else {
-      textToInsert = tag + selectedText + tag;
-    }
-
-    input.value =
-      input.value.substring(0, start) +
-      textToInsert +
-      input.value.substring(end);
-    input.focus();
-    input.setSelectionRange(
-      tag === "[]()" ? start + (selectedText ? 1 : 0) : start + tag.length,
-      tag === "[]()"
-        ? start + tag.length - 3 + (selectedText ? selectedText.length : 0)
-        : end + tag.length
+  function saveSoundSettings() {
+    localStorage.setItem(
+      "neonChatSoundSettings",
+      JSON.stringify(soundSettings)
     );
   }
 
-  // Load previous messages from localStorage
-  const messageHistoryKey = `chatMessages_${room}`;
-  const messageHistory =
-    JSON.parse(localStorage.getItem(messageHistoryKey)) || [];
-  messageHistory.forEach((msg) => appendMessage(msg));
+  function updateSoundToggleIcon() {
+    const icon = soundToggleBtn.querySelector("i");
+    icon.classList.toggle("fa-volume-up", soundSettings.enabled);
+    icon.classList.toggle("fa-volume-mute", !soundSettings.enabled);
+  }
 
-  // Scroll to bottom of messages
-  scrollToBottom();
+  function playNotificationSound() {
+    if (!soundSettings.enabled) return;
 
-  // Window focus state for notifications
-  let isWindowFocused = true;
-  window.addEventListener("focus", () => {
-    isWindowFocused = true;
+    // Play sound
+    notificationAudio.src = soundOptions[soundSettings.sound];
+    notificationAudio.volume = soundSettings.volume;
+    notificationAudio.play().catch(console.error);
+
+    // Also vibrate if on mobile (optional)
+    if ("vibrate" in navigator) {
+      navigator.vibrate(200);
+    }
+  }
+
+  // Enhanced showNotification function with fallback
+  function showNotification(title, options) {
+    // If Notifications API is supported and permission is granted
+    if ("Notification" in window && Notification.permission === "granted") {
+      if (!document.hasFocus()) {
+        try {
+          new Notification(title, options);
+          playNotificationSound();
+          return;
+        } catch (error) {
+          console.error("Notification API error:", error);
+          // Fall through to fallback
+        }
+      }
+    }
+
+    // Fallback for browsers without Notification support or when tab is focused
+    const fallback = document.getElementById("fallbackNotification");
+    if (fallback) {
+      document.getElementById("fallbackNotificationTitle").textContent = title;
+      document.getElementById("fallbackNotificationBody").textContent =
+        options.body || "";
+
+      fallback.classList.remove("hidden");
+      playNotificationSound();
+
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        fallback.classList.add("hidden");
+      }, 5000);
+    }
+  }
+
+  // —— 4) wire up your event listeners ——
+  // Toggle mute/unmute icon & state
+  soundToggleBtn.addEventListener("click", () => {
+    soundSettings.enabled = !soundSettings.enabled;
+    notificationSoundToggle.checked = soundSettings.enabled;
+    updateSoundToggleIcon();
+    saveSoundSettings();
   });
-  window.addEventListener("blur", () => {
-    isWindowFocused = false;
+
+  // Live‐sync the checkbox in the modal
+  notificationSoundToggle.addEventListener("change", () => {
+    soundSettings.enabled = notificationSoundToggle.checked;
+    updateSoundToggleIcon();
+    saveSoundSettings();
   });
 
-  // Notification sound
-  const notificationSound = new Audio("/notification.mp3");
+  // Volume slider
+  soundVolumeSlider.addEventListener("input", () => {
+    soundSettings.volume = parseFloat(soundVolumeSlider.value);
+    notificationAudio.volume = soundSettings.volume;
+    saveSoundSettings();
+  });
 
-  // Message form submission
-  messageForm.addEventListener("submit", (e) => {
-    e.preventDefault();
+  // Effect selector
+  soundSelect.addEventListener("change", () => {
+    soundSettings.sound = soundSelect.value;
+    saveSoundSettings();
+  });
 
-    const message = messageInput.value.trim();
-    if (!message) return;
+  // Test button
+  testSoundBtn.addEventListener("click", playNotificationSound);
 
-    // Emit message to server
-    socket.emit("chatMessage", {
-      text: message,
-      image: null,
+  // Save button in modal
+  saveSoundSettingsBtn.addEventListener("click", () => {
+    saveSoundSettings();
+    soundSettingsModal.classList.add("hidden");
+  });
+
+  // Request notification permission
+  // Request notification permission
+  function requestNotificationPermission() {
+    if (!("Notification" in window)) {
+      console.log("This browser does not support notifications.");
+      return;
+    }
+
+    // If permission is already granted, return
+    if (Notification.permission === "granted") {
+      return;
+    }
+
+    // If permission hasn't been denied, request it
+    if (Notification.permission !== "denied") {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          console.log("Notification permission granted.");
+          // Show welcome notification
+          showNotification("Welcome to Neon Chat", {
+            body: "You'll now receive notifications for new messages",
+            icon: "/images/notification-icon.png",
+          });
+        }
+      });
+    }
+  }
+
+  // Call this when the page loads
+  requestNotificationPermission();
+
+  // Function to show notification
+  // Function to show notification
+  function showNotification(title, options) {
+    // Only show notification if:
+    // 1. Notifications are supported
+    // 2. Permission is granted
+    // 3. The tab is not focused
+    if (!("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+    if (document.hasFocus()) return;
+
+    try {
+      // Play sound with notification
+      playNotificationSound();
+
+      // Show the notification
+      new Notification(title, {
+        body: options.body || "",
+        icon: options.icon || "/images/notification-icon.png",
+        badge: "/images/notification-badge.png",
+      });
+    } catch (error) {
+      console.error("Notification error:", error);
+    }
+  }
+
+  // Close modal
+  closeSoundSettingsBtn.addEventListener("click", () => {
+    soundSettingsModal.classList.add("hidden");
+  });
+
+  // —— 5) initialize on load ——
+  loadSoundSettings();
+
+  // Sound settings modal events
+  soundToggleBtn.addEventListener("click", () => {
+    soundSettingsModal.classList.remove("hidden");
+  });
+
+  closeSoundSettingsModal.addEventListener("click", () => {
+    soundSettingsModal.classList.add("hidden");
+  });
+
+  soundVolume.addEventListener("input", () => {
+    const volume = parseFloat(soundVolume.value);
+    volumeValue.textContent = `${Math.round(volume * 100)}%`;
+  });
+
+  testSoundBtn.addEventListener("click", playNotificationSound);
+
+  saveSoundSettingsBtn.addEventListener("click", () => {
+    saveSoundSettings();
+    soundSettingsModal.classList.add("hidden");
+  });
+
+  // Track currently typing users
+  const typingUsers = new Set();
+  // Track messages that are currently being edited
+  const editingMessages = new Map();
+  // Track AI prompts in progress
+  const aiPromptsInProgress = new Set();
+
+  // Storage key for messages
+  const STORAGE_KEY = `neonChat_${room}_messages`;
+
+  const scrollToBottom = () => {
+    messagesDiv.scrollTo({
+      top: messagesDiv.scrollHeight,
+      behavior: "smooth",
+    });
+  };
+
+  // Load messages from localStorage
+  function loadMessages() {
+    const savedMessages = localStorage.getItem(STORAGE_KEY);
+    if (savedMessages) {
+      try {
+        const messages = JSON.parse(savedMessages);
+        messages.forEach((msg) => {
+          displayMessage(msg, false); // false means don't save again
+        });
+        setTimeout(scrollToBottom, 100);
+      } catch (e) {
+        console.error("Failed to parse saved messages", e);
+      }
+    }
+  }
+
+  // Save message to localStorage
+  function saveMessage(message) {
+    let messages = [];
+    const savedMessages = localStorage.getItem(STORAGE_KEY);
+
+    if (savedMessages) {
+      try {
+        messages = JSON.parse(savedMessages);
+      } catch (e) {
+        console.error("Failed to parse existing messages", e);
+      }
+    }
+
+    // Keep only the last 100 messages to prevent localStorage overflow
+    messages.push(message);
+    if (messages.length > 100) {
+      messages = messages.slice(-100);
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+  }
+
+  // Update message in localStorage
+  function updateMessageInStorage(messageId, newContent) {
+    const savedMessages = localStorage.getItem(STORAGE_KEY);
+    if (!savedMessages) return;
+
+    try {
+      let messages = JSON.parse(savedMessages);
+      const messageIndex = messages.findIndex((msg) => msg.id === messageId);
+      if (messageIndex !== -1) {
+        messages[messageIndex].text = newContent;
+        messages[messageIndex].edited = true;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+      }
+    } catch (e) {
+      console.error("Failed to update message in storage", e);
+    }
+  }
+
+  // Remove message from localStorage
+  function removeMessageFromStorage(messageId) {
+    const savedMessages = localStorage.getItem(STORAGE_KEY);
+    if (!savedMessages) return;
+
+    try {
+      let messages = JSON.parse(savedMessages);
+      messages = messages.filter((msg) => msg.id !== messageId);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch (e) {
+      console.error("Failed to remove message from storage", e);
+    }
+  }
+
+  // Clear chat history
+  function clearChatHistory() {
+    if (!confirm("Are you sure?")) return;
+    socket.emit("clearHistory");
+    localStorage.removeItem(STORAGE_KEY);
+    messagesDiv.innerHTML = "";
+    displayMessage(
+      { isSystem: true, text: "Chat history has been cleared" },
+      false
+    );
+  }
+
+  // Generate a unique ID for messages
+  function generateMessageId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  }
+
+  // Display a message in the chat
+  function displayMessage(data, saveToStorage = true) {
+    // Generate ID if not present
+    if (!data.id) {
+      data.id = generateMessageId();
+    }
+
+    // If we're already editing this message, skip
+    if (editingMessages.has(data.id)) {
+      return;
+    }
+
+    // Show notification for new messages that aren't from the current user or system
+    if (!data.isSystem && data.username !== username) {
+      const notificationTitle = `New message from ${data.username}`;
+      const notificationOptions = {
+        body: data.text || (data.image ? "Sent an image" : "New message"),
+        icon: "/images/notification-icon.png",
+        tag: data.id, // Group notifications by message ID
+      };
+
+      showNotification(notificationTitle, notificationOptions);
+    }
+
+    const messageDiv = document.createElement("div");
+    messageDiv.className = "message-container relative";
+    messageDiv.dataset.messageId = data.id;
+
+    const contentDiv = document.createElement("div");
+    contentDiv.className = "message bg-gray-800 p-3 rounded-lg";
+
+    if (data.isSystem) {
+      contentDiv.className += " text-center text-purple-300 italic text-sm";
+      contentDiv.textContent = data.text;
+    } else {
+      if (data.username === username) {
+        contentDiv.className +=
+          " ml-auto bg-gradient-to-r from-purple-700 to-pink-700";
+
+        // Add action buttons for user's own messages
+        const actionsDiv = document.createElement("div");
+        actionsDiv.className = "message-actions space-x-1 p-1";
+
+        const editButton = document.createElement("button");
+        editButton.className = "text-white hover:text-purple-200 text-xs";
+        editButton.innerHTML = '<i class="fas fa-edit"></i>';
+        editButton.title = "Edit";
+        editButton.addEventListener("click", (e) => {
+          e.stopPropagation();
+          startEditingMessage(data.id);
+        });
+
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "text-white hover:text-purple-200 text-xs";
+        deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+        deleteButton.title = "Delete";
+        deleteButton.addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteMessage(data.id);
+        });
+
+        actionsDiv.appendChild(editButton);
+        actionsDiv.appendChild(deleteButton);
+        messageDiv.appendChild(actionsDiv);
+      } else {
+        contentDiv.className += " mr-auto bg-gray-700";
+        // Play notification sound for incoming messages (except our own)
+        if (soundSettings.enabled && data.username !== username) {
+          playNotificationSound();
+        }
+      }
+
+      if (data.image) {
+        const imgContainer = document.createElement("div");
+        imgContainer.className = "mt-2";
+        const img = document.createElement("img");
+        img.className = "max-w-full max-h-48 rounded-lg";
+        img.src = data.image;
+
+        img.onload = function () {
+          scrollToBottom(true);
+        };
+        img.onerror = function () {
+          scrollToBottom(true);
+        };
+
+        imgContainer.appendChild(img);
+
+        contentDiv.innerHTML = `
+              <div class="flex justify-between items-baseline">
+                <strong class="${
+                  data.username === username
+                    ? "text-pink-200"
+                    : "text-purple-200"
+                } text-sm">${data.username}</strong>
+                <span class="text-xs text-purple-400 ml-2">${new Date(
+                  data.timestamp || Date.now()
+                ).toLocaleTimeString()}</span>
+              </div>
+              <div class="text-sm message-text mt-1">${data.text || ""}</div>
+            `;
+        contentDiv.appendChild(imgContainer);
+      } else {
+        // Regular text message
+        let editedIndicator = data.edited
+          ? '<span class="text-xs text-purple-400 italic">(edited)</span>'
+          : "";
+
+        // Special formatting for AI messages
+        let messageContent = data.text || "";
+        if (data.username === "AI") {
+          messageContent = `
+                <div class="flex justify-between items-baseline">
+                  <strong class="text-purple-200 text-sm">${
+                    data.username
+                  }</strong>
+                  <div>
+                    ${editedIndicator}
+                    <span class="text-xs text-purple-400 ml-2">${new Date(
+                      data.timestamp || Date.now()
+                    ).toLocaleTimeString()}</span>
+                  </div>
+                </div>
+                <div class="ai-response text-sm mt-1 p-2 rounded">
+                  ${messageContent}
+                </div>
+              `;
+        } else {
+          messageContent = `
+                <div class="flex justify-between items-baseline">
+                  <strong class="${
+                    data.username === username
+                      ? "text-pink-200"
+                      : "text-purple-200"
+                  } text-sm">${data.username}</strong>
+                  <div>
+                    ${editedIndicator}
+                    <span class="text-xs text-purple-400 ml-2">${new Date(
+                      data.timestamp || Date.now()
+                    ).toLocaleTimeString()}</span>
+                  </div>
+                </div>
+                <div class="text-sm message-text mt-1">${messageContent}</div>
+              `;
+        }
+
+        contentDiv.innerHTML = messageContent;
+      }
+    }
+
+    messageDiv.appendChild(contentDiv);
+
+    // Replace existing message if it's an update
+    const existingMessage = document.querySelector(
+      `[data-message-id="${data.id}"]`
+    );
+    if (existingMessage) {
+      existingMessage.replaceWith(messageDiv);
+    } else {
+      messagesDiv.appendChild(messageDiv);
+    }
+
+    // Scroll immediately for text messages
+    if (!data.image) {
+      setTimeout(() => scrollToBottom(), 50);
+    }
+
+    if (saveToStorage && !data.isSystem) {
+      saveMessage(data);
+    }
+  }
+
+  // Start editing a message
+  function startEditingMessage(messageId) {
+    // If already editing another message, cancel that first
+    if (editingMessages.size > 0) {
+      const [existingId, existingCallback] = editingMessages
+        .entries()
+        .next().value;
+      cancelEditMessage(existingId, existingCallback);
+    }
+
+    const messageElement = document.querySelector(
+      `[data-message-id="${messageId}"] .message-text`
+    );
+    if (!messageElement) return; // Silently return if message not found
+
+    const originalContent = messageElement.textContent;
+    const input = document.createElement("input");
+    input.className = "edit-input";
+    input.value = originalContent;
+
+    const saveEdit = () => {
+      const newContent = input.value.trim();
+      if (newContent && newContent !== originalContent) {
+        socket.emit("editMessage", {
+          id: messageId,
+          text: newContent,
+        });
+      }
+      editingMessages.delete(messageId);
+      if (messageElement.parentNode) {
+        messageElement.textContent = newContent || originalContent;
+        input.remove();
+      }
+    };
+
+    const cancelEdit = () => {
+      editingMessages.delete(messageId);
+      if (messageElement.parentNode) {
+        messageElement.textContent = originalContent;
+        input.remove();
+      }
+    };
+
+    input.addEventListener("blur", saveEdit);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        saveEdit();
+      } else if (e.key === "Escape") {
+        cancelEdit();
+      }
     });
 
-    // Clear input
-    messageInput.value = "";
+    // Replace the text with the input field
+    messageElement.textContent = "";
+    messageElement.appendChild(input);
+    input.focus();
 
-    // Focus input again
-    messageInput.focus();
-  });
+    // Store the cancel callback
+    editingMessages.set(messageId, cancelEdit);
+  }
 
-  // Handle image upload
+  // Cancel editing a message
+  function cancelEditMessage(messageId, cancelCallback) {
+    if (cancelCallback) {
+      cancelCallback();
+    }
+    editingMessages.delete(messageId);
+  }
+
+  // Delete a message
+  function deleteMessage(messageId) {
+    socket.emit("deleteMessage", messageId);
+
+    // Remove from DOM immediately
+    const messageElement = document.querySelector(
+      `[data-message-id="${messageId}"]`
+    );
+    if (messageElement) {
+      messageElement.remove();
+    }
+
+    // Remove from storage
+    removeMessageFromStorage(messageId);
+  }
+
+  function handleAIPrompt() {
+    const prompt = messageInput.value.trim();
+    if (!prompt) return;
+
+    // Check if we're already processing this prompt
+    if (aiPromptsInProgress.has(prompt)) return;
+    aiPromptsInProgress.add(prompt);
+
+    // Show loading state
+    const originalButtonHTML = aiPromptButton.innerHTML;
+    aiPromptButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    aiPromptButton.disabled = true;
+
+    // Send AI request
+    socket.emit("aiRequest", prompt, (response) => {
+      // Remove from in-progress set
+      aiPromptsInProgress.delete(prompt);
+
+      // Restore button state
+      aiPromptButton.innerHTML = originalButtonHTML;
+      aiPromptButton.disabled = false;
+
+      if (response.error) {
+        displayMessage(
+          {
+            isSystem: true,
+            text: `AI Error: ${response.error}`,
+            timestamp: new Date(),
+          },
+          false
+        );
+      } else {
+        // Clear the input if the AI responded successfully
+        messageInput.value = "";
+      }
+    });
+  }
+
   imageUpload.addEventListener("change", (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Client-side validation
     if (file.size > 20 * 1024 * 1024) {
-      alert("Image size must be less than 20MB");
+      const errorMsg = {
+        isSystem: true,
+        text: "Image too large (max 20MB)",
+        timestamp: new Date(),
+      };
+      displayMessage(errorMsg, false);
+      e.target.value = "";
       return;
     }
 
@@ -228,108 +671,47 @@ function initChatPage() {
     })
       .then((response) => response.json())
       .then((data) => {
-        if (data.error) {
-          alert(data.error);
-        } else {
-          // Send image message
-          socket.emit("chatMessage", {
-            text: "",
+        if (data.imageUrl) {
+          const messageData = {
+            username,
             image: data.imageUrl,
-          });
+            text: "", // Ensure text property exists
+            timestamp: new Date(),
+            id: generateMessageId(),
+          };
+          socket.emit("chatMessage", messageData);
+          // Clear the input after successful upload
+          e.target.value = "";
         }
       })
       .catch((error) => {
-        console.error("Error uploading image:", error);
-        alert("Error uploading image");
-      })
-      .finally(() => {
-        // Reset file input
+        console.error("Upload error:", error);
+        const errorMsg = {
+          isSystem: true,
+          text: "Failed to upload image",
+          timestamp: new Date(),
+        };
+        displayMessage(errorMsg, false);
+        // Clear the input even if there's an error
         e.target.value = "";
       });
   });
 
-  // Typing indicators
-  let typingTimeout;
-  messageInput.addEventListener("input", () => {
-    socket.emit("typing", true);
+  // Join chat room
+  socket.emit("joinRoom", { username, room });
 
-    // Clear previous timeout
-    clearTimeout(typingTimeout);
+  // Load saved messages when page loads
+  loadMessages();
 
-    // Set timeout to stop typing indicator after 2 seconds of inactivity
-    typingTimeout = setTimeout(() => {
-      socket.emit("typing", false);
-    }, 2000);
-
-    // Check for @ mentions
-    const text = messageInput.value;
-    const lastWord = text.split(/\s+/).pop();
-    if (lastWord.startsWith("@")) {
-      showUserSuggestions(lastWord.substring(1));
-    } else {
-      hideUserSuggestions();
-    }
+  // Mobile menu toggle
+  mobileMenuButton.addEventListener("click", () => {
+    mobileUsersMenu.classList.remove("hidden");
+    mobileUsersMenu.classList.add("visible");
   });
 
-  function showUserSuggestions(partial) {
-    // In a real implementation, you would get this from the online users list
-    const suggestions =
-      document.getElementById("userSuggestions") || createUserSuggestions();
-    suggestions.innerHTML = "";
-
-    // Filter online users (mock data)
-    const mockUsers = ["alice", "bob", "charlie"].filter((user) =>
-      user.toLowerCase().includes(partial.toLowerCase())
-    );
-
-    mockUsers.forEach((user) => {
-      const item = document.createElement("div");
-      item.className = "p-2 hover:bg-purple-900 cursor-pointer";
-      item.textContent = user;
-      item.onclick = () => {
-        const text = messageInput.value;
-        const lastAt = text.lastIndexOf("@");
-        messageInput.value = text.substring(0, lastAt) + "@" + user + " ";
-        messageInput.focus();
-        hideUserSuggestions();
-      };
-      suggestions.appendChild(item);
-    });
-
-    if (mockUsers.length > 0) {
-      suggestions.classList.remove("hidden");
-    }
-  }
-
-  function hideUserSuggestions() {
-    const suggestions = document.getElementById("userSuggestions");
-    if (suggestions) suggestions.classList.add("hidden");
-  }
-
-  function createUserSuggestions() {
-    const container = document.createElement("div");
-    container.id = "userSuggestions";
-    container.className =
-      "hidden absolute bottom-16 left-0 bg-gray-800 border border-purple-900 rounded-lg w-64 max-h-48 overflow-y-auto z-10";
-    messageForm.parentElement.appendChild(container);
-    return container;
-  }
-
-  // Search functionality
-  searchBtn.addEventListener("click", () => {
-    const searchTerm = prompt("Search messages:");
-    if (searchTerm) {
-      const messages = Array.from(messagesContainer.children);
-      messages.forEach((msg) => {
-        const msgText = msg.textContent.toLowerCase();
-        if (msgText.includes(searchTerm.toLowerCase())) {
-          msg.classList.add("bg-purple-900");
-          msg.scrollIntoView({ behavior: "smooth", block: "center" });
-        } else {
-          msg.classList.remove("bg-purple-900");
-        }
-      });
-    }
+  closeMobileMenu.addEventListener("click", () => {
+    mobileUsersMenu.classList.remove("visible");
+    mobileUsersMenu.classList.add("hidden");
   });
 
   // Logout button
@@ -337,322 +719,216 @@ function initChatPage() {
     window.location.href = "/";
   });
 
-  // Socket.io event listeners
-  socket.on("message", (message) => {
-    // Check if message already exists (to prevent duplicates)
-    const messageExists = messageHistory.some((msg) => msg.id === message.id);
+  // Clear history button
+  clearHistoryBtn.addEventListener("click", clearChatHistory);
 
-    if (!messageExists) {
-      if (message.username !== username && !isWindowFocused) {
-        notificationSound.play();
-      }
-
-      appendMessage(message);
-
-      // Save to message history
-      messageHistory.push(message);
-      if (messageHistory.length > 100) {
-        messageHistory.shift(); // Keep only last 100 messages
-      }
-      localStorage.setItem(messageHistoryKey, JSON.stringify(messageHistory));
-    }
+  // AI Help button
+  aiHelpBtn.addEventListener("click", () => {
+    aiHelpModal.classList.remove("hidden");
   });
 
+  // Close AI Help modal
+  closeAiHelpModal.addEventListener("click", () => {
+    aiHelpModal.classList.add("hidden");
+  });
+
+  gotItButton.addEventListener("click", () => {
+    aiHelpModal.classList.add("hidden");
+  });
+
+  // AI Prompt button
+  aiPromptButton.addEventListener("click", handleAIPrompt);
+
+  // Typing indicators
+  let typingTimeout;
+  let isTyping = false;
+
+  messageInput.addEventListener("input", () => {
+    if (!isTyping) {
+      isTyping = true;
+      socket.emit("typing", { isTyping: true });
+    }
+
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      isTyping = false;
+      socket.emit("typing", { isTyping: false });
+    }, 2000);
+  });
+
+  // Handle typing status updates
   socket.on("typing", (data) => {
     if (data.isTyping) {
-      // Add user to typing indicator
-      if (!typingIndicator.textContent.includes(data.username)) {
-        if (typingUsers.textContent) {
-          typingUsers.textContent += `, ${data.username}`;
-        } else {
-          typingUsers.textContent = `${data.username} is typing...`;
-        }
+      typingUsers.add(data.username);
+    } else {
+      typingUsers.delete(data.username);
+    }
+
+    // Update typing indicator
+    if (typingUsers.size > 0) {
+      const names = Array.from(typingUsers);
+      let typingText = "";
+
+      if (names.length === 1) {
+        typingText = `${names[0]} is typing...`;
+      } else if (names.length === 2) {
+        typingText = `${names[0]} and ${names[1]} are typing...`;
+      } else {
+        typingText = `${names[0]}, ${names[1]}, and others are typing...`;
       }
+
+      typingUsersElement.textContent = typingText;
       typingIndicator.classList.remove("hidden");
     } else {
-      // Remove user from typing indicator
-      const users = typingUsers.textContent
-        .replace(" is typing...", "")
-        .split(", ");
-      const index = users.indexOf(data.username);
-      if (index !== -1) {
-        users.splice(index, 1);
-        if (users.length > 0) {
-          typingUsers.textContent = `${users.join(", ")} is typing...`;
-        } else {
-          typingIndicator.classList.add("hidden");
-        }
-      }
+      typingIndicator.classList.add("hidden");
     }
   });
 
-  socket.on("userList", (users) => {
-    onlineUsersList.innerHTML = `
-      <h3 class="font-bold text-purple-300 mb-3">Online (${users.length})</h3>
-      <ul class="space-y-2">
-        ${users
-          .map(
-            (user) => `<li class="flex items-center">
-          <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-          ${user.username}
-        </li>`
-          )
-          .join("")}
-      </ul>
-    `;
-  });
-
-  socket.on("pinnedMessage", (message) => {
-    pinnedContainer.classList.remove("hidden");
-
-    const pinnedMsg = document.createElement("div");
-    pinnedMsg.className = "bg-purple-900 p-3 rounded-lg mb-2";
-    pinnedMsg.innerHTML = `
-      <div class="text-xs text-purple-300 mb-1">📌 Pinned by ${message.pinnedBy}</div>
-      <div>${message.text}</div>
-    `;
-    pinnedContainer.appendChild(pinnedMsg);
-  });
-
-  // Handle message editing
-  socket.on("messageEdited", ({ id, text }) => {
-    const messageElement = document.querySelector(`[data-id="${id}"]`);
-    if (messageElement) {
-      const messageText = messageElement.querySelector(".mt-1");
-      if (messageText) {
-        messageText.textContent = text;
-      }
-    }
-  });
-
-  // Handle message deletion
-  socket.on("messageDeleted", (messageId) => {
-    const messageElement = document.querySelector(`[data-id="${messageId}"]`);
-    if (messageElement) {
-      messageElement.remove();
-    }
-  });
-
-  // Handle reactions
-  socket.on("reaction", ({ messageId, reaction, count }) => {
-    const messageElement = document.querySelector(`[data-id="${messageId}"]`);
-    if (messageElement) {
-      // Find or create reaction display
-      let reactionDisplay = messageElement.querySelector(".reaction-display");
-      if (!reactionDisplay) {
-        reactionDisplay = document.createElement("div");
-        reactionDisplay.className = "reaction-display flex space-x-1 mt-1";
-        messageElement.appendChild(reactionDisplay);
-      }
-
-      // Update or add the reaction
-      const reactionBadge = reactionDisplay.querySelector(
-        `[data-reaction="${reaction}"]`
-      );
-      if (reactionBadge) {
-        reactionBadge.textContent = `${reaction} ${count}`;
-      } else {
-        const badge = document.createElement("span");
-        badge.className = "text-xs bg-purple-900 px-2 py-1 rounded-full";
-        badge.dataset.reaction = reaction;
-        badge.textContent = `${reaction} ${count}`;
-        reactionDisplay.appendChild(badge);
-      }
-    }
-  });
-
-  // Handle read receipts
-  socket.on("messageReadBy", ({ messageId, username }) => {
-    const receipt = document.getElementById(`read-${messageId}`);
-    if (receipt) {
-      if (receipt.textContent) {
-        receipt.textContent += `, ${username}`;
-      } else {
-        receipt.textContent = `Read by ${username}`;
-      }
-    }
-  });
-
-  // Helper functions
-  function appendMessage(message) {
-    const messageElement = document.createElement("div");
-    messageElement.classList.add("message", "p-4", "rounded-lg", "max-w-3xl");
-    messageElement.dataset.id = message.id;
-
-    if (message.isSystem) {
-      messageElement.classList.add(
-        "bg-gray-700",
-        "text-center",
-        "text-purple-300",
-        "italic"
-      );
-      messageElement.innerHTML = `<span>${message.text}</span> <span class="text-xs opacity-70 ml-2">${message.time}</span>`;
-    } else {
-      messageElement.classList.add("bg-gray-700", "shadow-md");
-
-      if (message.username === username) {
-        messageElement.classList.add(
-          "ml-auto",
-          "bg-gradient-to-r",
-          "from-purple-700",
-          "to-pink-700"
-        );
-      } else {
-        messageElement.classList.add("mr-auto", "bg-gray-700");
-      }
-
-      messageElement.innerHTML = `
-        <div class="font-bold text-sm ${
-          message.username === username ? "text-pink-200" : "text-purple-200"
-        }">
-          ${message.username} <span class="text-xs opacity-70 ml-2">${
-        message.time
-      }</span>
-        </div>
-        ${message.text ? `<div class="mt-1">${message.text}</div>` : ""}
-        ${
-          message.image
-            ? `<div class="mt-2"><img src="${message.image}" alt="Uploaded image" class="max-w-full max-h-64 rounded-lg border border-purple-900"></div>`
-            : ""
-        }
-      `;
-
-      // Add reactions container
-      const reactionsContainer = document.createElement("div");
-      reactionsContainer.className = "flex space-x-1 mt-2";
-
-      const reactions = ["👍", "❤️", "😂", "😮", "😢"];
-      reactions.forEach((reaction) => {
-        const btn = document.createElement("button");
-        btn.textContent = reaction;
-        btn.className = "text-sm hover:scale-125 transition-transform";
-        btn.onclick = () =>
-          socket.emit("react", { messageId: message.id, reaction });
-        reactionsContainer.appendChild(btn);
-      });
-
-      messageElement.appendChild(reactionsContainer);
-
-      // Add existing reactions
-      if (
-        message.reactions &&
-        Object.values(message.reactions).some((count) => count > 0)
-      ) {
-        const reactionDisplay = document.createElement("div");
-        reactionDisplay.className = "flex space-x-1 mt-1";
-        Object.entries(message.reactions).forEach(([reaction, count]) => {
-          if (count > 0) {
-            const badge = document.createElement("span");
-            badge.className = "text-xs bg-purple-900 px-2 py-1 rounded-full";
-            badge.textContent = `${reaction} ${count}`;
-            reactionDisplay.appendChild(badge);
-          }
-        });
-        messageElement.appendChild(reactionDisplay);
-      }
-
-      // Add edit/delete buttons for user's own messages
-      if (message.username === username) {
-        const actions = document.createElement("div");
-        actions.className = "flex space-x-2 mt-2 text-xs";
-
-        const editBtn = document.createElement("button");
-        editBtn.textContent = "Edit";
-        editBtn.className = "text-purple-300 hover:text-purple-100";
-        editBtn.onclick = () => editMessage(message.id, message.text);
-        actions.appendChild(editBtn);
-
-        const deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "Delete";
-        deleteBtn.className = "text-pink-300 hover:text-pink-100";
-        deleteBtn.onclick = () => socket.emit("deleteMessage", message.id);
-        actions.appendChild(deleteBtn);
-
-        const pinBtn = document.createElement("button");
-        pinBtn.textContent = "Pin";
-        pinBtn.className = "text-yellow-300 hover:text-yellow-100";
-        pinBtn.onclick = () => socket.emit("pinMessage", message.id);
-        actions.appendChild(pinBtn);
-
-        messageElement.appendChild(actions);
-      }
-
-      // Add read receipt for others' messages
-      if (message.username !== username) {
-        const readReceipt = document.createElement("div");
-        readReceipt.className = "text-right text-xs text-purple-400 mt-1";
-        readReceipt.id = `read-${message.id}`;
-        messageElement.appendChild(readReceipt);
-      }
-    }
-
-    messagesContainer.appendChild(messageElement);
-    scrollToBottom();
-  }
-
-  function editMessage(id, currentText) {
-    const input = document.getElementById("messageInput");
-    input.value = currentText;
-    input.focus();
-
-    // Change send button to update button temporarily
-    const form = document.getElementById("messageForm");
-    const submitBtn = form.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
-
-    submitBtn.innerHTML = 'Update <i class="fas fa-save ml-1"></i>';
-    form.onsubmit = (e) => {
-      e.preventDefault();
-      const newText = input.value.trim();
-      if (newText) {
-        socket.emit("editMessage", { id, text: newText });
-        input.value = "";
-        submitBtn.innerHTML = originalText;
-        form.onsubmit = handleMessageSubmit; // Restore original handler
-      }
-    };
-  }
-
-  function handleMessageSubmit(e) {
+  // Message form submission
+  messageForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const message = messageInput.value.trim();
     if (!message) return;
-    socket.emit("chatMessage", { text: message, image: null });
-    messageInput.value = "";
-    messageInput.focus();
-  }
 
-  function scrollToBottom() {
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-  }
+    // Check if this is an AI command
+    if (message.startsWith("@AI ") || message.startsWith("@ai ")) {
+      const prompt = message.substring(4).trim();
+      if (prompt) {
+        messageInput.value = prompt;
+        handleAIPrompt();
+      }
+      return;
+    }
 
-  // Track read messages
-  messagesContainer.addEventListener(
-    "scroll",
-    debounce(() => {
-      const containerBottom =
-        messagesContainer.scrollTop + messagesContainer.clientHeight;
-      const messages = Array.from(messagesContainer.children);
-
-      messages.forEach((msg) => {
-        const msgBottom = msg.offsetTop + msg.offsetHeight;
-        if (msgBottom < containerBottom) {
-          const messageId = msg.dataset.id;
-          if (messageId) socket.emit("messageRead", messageId);
-        }
-      });
-    }, 500)
-  );
-
-  function debounce(func, wait) {
-    let timeout;
-    return function () {
-      const context = this,
-        args = arguments;
-      clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        func.apply(context, args);
-      }, wait);
+    const messageData = {
+      username,
+      text: message,
+      timestamp: new Date(),
+      id: generateMessageId(),
     };
-  }
-}
+
+    socket.emit("chatMessage", messageData);
+    // Clear the input after sending
+    messageInput.value = "";
+
+    if (isTyping) {
+      isTyping = false;
+      socket.emit("typing", { isTyping: false });
+      clearTimeout(typingTimeout);
+    }
+  });
+
+  // handle history without saving
+  socket.on("historyMessage", (data) => {
+    displayMessage(data, /* saveToStorage */ false);
+  });
+
+  // handle brand-new messages (from you or others) *and* save them
+  socket.on("message", (data) => {
+    displayMessage(data, /* saveToStorage */ true);
+  });
+
+  // Handle AI responses
+  socket.on("aiResponse", (response) => {
+    displayMessage({
+      username: "AI",
+      text: response,
+      timestamp: new Date(),
+      id: generateMessageId(),
+    });
+  });
+
+  // Handle edited messages
+  socket.on("messageEdited", (data) => {
+    // If we're currently editing this message, cancel that
+    if (editingMessages.has(data.id)) {
+      const cancelCallback = editingMessages.get(data.id);
+      cancelEditMessage(data.id, cancelCallback);
+    }
+
+    // Find the message in the DOM
+    const messageElement = document.querySelector(
+      `[data-message-id="${data.id}"]`
+    );
+    if (messageElement) {
+      // Update the message content
+      const messageTextElement = messageElement.querySelector(".message-text");
+      if (messageTextElement) {
+        messageTextElement.textContent = data.text;
+      }
+
+      // Add edited indicator
+      const timeElement = messageElement.querySelector(
+        ".text-xs.text-purple-400"
+      );
+      if (timeElement && !timeElement.innerHTML.includes("(edited)")) {
+        timeElement.innerHTML = `(edited) ${timeElement.innerHTML}`;
+      }
+    }
+
+    // Update in storage
+    updateMessageInStorage(data.id, data.text);
+  });
+
+  // Handle deleted messages
+  socket.on("messageDeleted", (messageId) => {
+    const messageElement = document.querySelector(
+      `[data-message-id="${messageId}"]`
+    );
+    if (messageElement) {
+      messageElement.remove();
+    }
+
+    // Remove from storage
+    removeMessageFromStorage(messageId);
+  });
+
+  // Handle user list updates
+  socket.on("userList", (users) => {
+    onlineUsersDesktop.innerHTML = "";
+    onlineUsersMobile.innerHTML = "";
+
+    users.forEach((user) => {
+      const userEl = document.createElement("li");
+      userEl.className = "text-purple-200 flex items-center text-sm";
+      userEl.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+            ${user.username}
+            <span class="text-xs text-purple-400 ml-2">${new Date(
+              user.lastSeen
+            ).toLocaleTimeString()}</span>
+          `;
+
+      onlineUsersDesktop.appendChild(userEl.cloneNode(true));
+      onlineUsersMobile.appendChild(userEl.cloneNode(true));
+    });
+
+    // Update online count
+    const count = users.length;
+    onlineCount.textContent = count;
+    mobileOnlineCount.textContent = count;
+  });
+
+  // Handle errors
+  socket.on("error", (error) => {
+    const errorDiv = document.createElement("div");
+    errorDiv.className =
+      "bg-red-900 text-white p-2 rounded-lg text-center text-xs";
+    errorDiv.textContent = error;
+    messagesDiv.appendChild(errorDiv);
+    scrollToBottom();
+  });
+
+  // Add resize observer to handle layout changes
+  const resizeObserver = new ResizeObserver(() => {
+    scrollToBottom();
+  });
+  resizeObserver.observe(messagesDiv);
+
+  // Save messages before page unload
+  window.addEventListener("beforeunload", () => {
+    if (isTyping) {
+      socket.emit("typing", { isTyping: false });
+    }
+  });
+});
