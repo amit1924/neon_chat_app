@@ -2,447 +2,699 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neon Pulse Chat</title>
-  <!-- Tailwind CSS CDN with custom colors -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Neon Chat</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'neon-pink': '#ff00ff',
-            'neon-blue': '#00f0ff',
-            'neon-purple': '#9d00ff',
-            'neon-green': '#00ff9d',
-            'neon-yellow': '#fff000',
-            'deep-space': '#0f0e17',
-            'cosmic-purple': '#1a0a2e',
-            'electric-blue': '#2d00f7',
-          },
-          fontFamily: {
-            'orbitron': ['Orbitron', 'sans-serif'],
-            'rajdhani': ['Rajdhani', 'sans-serif'],
-          },
-          animation: {
-            'pulse-slow': 'pulse 6s infinite',
-            'float': 'float 6s ease-in-out infinite',
-            'neon-glow': 'neon-glow 1.5s ease-in-out infinite alternate',
-            'neon-flicker': 'neon-flicker 4s linear infinite',
-          },
-          keyframes: {
-            float: {
-              '0%, 100%': { transform: 'translateY(0)' },
-              '50%': { transform: 'translateY(-10px)' },
-            },
-            'neon-glow': {
-              '0%': { 'text-shadow': '0 0 5px #fff, 0 0 10px #fff, 0 0 15px #9d00ff, 0 0 20px #9d00ff' },
-              '100%': { 'text-shadow': '0 0 10px #fff, 0 0 20px #fff, 0 0 30px #ff00ff, 0 0 40px #ff00ff' },
-            },
-            'neon-flicker': {
-              '0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100%': { opacity: 1 },
-              '20%, 21.999%, 63%, 63.999%, 65%, 69.999%': { opacity: 0.4 },
-            }
-          }
-        }
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    html, body {
+      overflow-x: hidden;
+      width: 100%;
+    }
+    #mobileUsersMenu {
+      transition: transform 0.3s ease-in-out;
+    }
+    #mobileUsersMenu.hidden {
+      transform: translateX(100%);
+    }
+    #mobileUsersMenu.visible {
+      transform: translateX(0);
+    }
+    .message {
+      max-width: 90%;
+    }
+    @media (min-width: 768px) {
+      .message {
+        max-width: 75%;
       }
     }
-  </script>
-  <!-- Custom styles -->
-  <style>
-    /* Custom scrollbar */
     ::-webkit-scrollbar {
-      width: 10px;
+      width: 6px;
     }
     ::-webkit-scrollbar-track {
-      background: linear-gradient(to bottom, #1a0a2e, #0f0e17);
+      background: #1f2937;
     }
     ::-webkit-scrollbar-thumb {
-      background: linear-gradient(to bottom, #9d00ff, #ff00ff);
-      border-radius: 5px;
+      background: #7c3aed;
+      border-radius: 3px;
     }
-    ::-webkit-scrollbar-thumb:hover {
-      background: linear-gradient(to bottom, #ff00ff, #00f0ff);
+    #messages {
+      scroll-behavior: smooth;
     }
-    
-    /* Message animations */
-    .message {
-      animation: fadeIn 0.3s ease-out;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px) scale(0.95); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    
-    /* Background gradient */
-    body {
-      background: radial-gradient(circle at center, #1a0a2e 0%, #0f0e17 70%);
-    }
-    
-    /* Neon border effect */
-    .neon-border {
-      position: relative;
-      box-shadow: 0 0 10px rgba(157, 0, 255, 0.5);
-    }
-    .neon-border::before {
-      content: '';
+    .message-actions {
+      display: none;
       position: absolute;
-      top: -2px;
-      left: -2px;
-      right: -2px;
-      bottom: -2px;
-      z-index: -1;
-      background: linear-gradient(45deg, #ff00ff, #00f0ff, #9d00ff, #00ff9d);
-      background-size: 400% 400%;
-      border-radius: inherit;
-      opacity: 0;
-      transition: 0.5s;
-      animation: gradient 8s ease infinite;
+      right: 0.5rem;
+      top: 0.5rem;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 0.25rem;
     }
-    .neon-border:hover::before {
-      opacity: 1;
+    .message-container:hover .message-actions {
+      display: flex;
     }
-    @keyframes gradient {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-    
-    /* Floating particles background */
-    .particles {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: -1;
-      overflow: hidden;
-    }
-    .particle {
-      position: absolute;
-      background: rgba(255, 255, 255, 0.5);
-      border-radius: 50%;
-      pointer-events: none;
-    }
-    
-    /* Message bubble styling */
-    .message-bubble {
-      position: relative;
-      border-radius: 1rem;
-      padding: 1rem;
-      max-width: 80%;
-      word-wrap: break-word;
-    }
-    .message-bubble::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      width: 0;
-      height: 0;
-      border: 10px solid transparent;
-    }
-    .user-message {
-      background: linear-gradient(135deg, #9d00ff 0%, #2d00f7 100%);
-      align-self: flex-end;
-    }
-    .user-message::after {
-      right: -10px;
-      border-left-color: #2d00f7;
-      border-right: 0;
-    }
-    .other-message {
-      background: linear-gradient(135deg, #1a0a2e 0%, #2d00f7 100%);
-      align-self: flex-start;
-    }
-    .other-message::after {
-      left: -10px;
-      border-right-color: #1a0a2e;
-      border-left: 0;
-    }
-    
-    /* Online users sidebar */
-    .online-users-container {
-      transition: all 0.3s ease;
-      overflow-y: auto;
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-      .message-bubble {
-        max-width: 90%;
-      }
-      .message-input-container {
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      .message-input {
-        width: 100%;
-        padding: 0.75rem;
-      }
-      .message-submit-btn {
-        width: 100%;
-        padding: 0.75rem;
-      }
-      .online-users-container {
-        position: fixed;
-        top: 0;
-        right: -100%;
-        width: 70%;
-        height: 100%;
-        z-index: 40;
-        background: rgba(26, 10, 46, 0.95);
-        backdrop-filter: blur(10px);
-      }
-      .online-users-container.active {
-        right: 0;
-      }
-      .online-users-toggle {
-        display: block;
-      }
+    .edit-input {
+      width: calc(100% - 1rem);
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 0.25rem;
+      border-radius: 0.25rem;
     }
   </style>
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
-  <!-- Font Awesome CDN -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="text-gray-100 min-h-screen font-rajdhani">
-  <!-- Floating particles background -->
-  <div class="particles" id="particles"></div>
-  
-  <div class="max-w-6xl mx-auto h-screen flex flex-col relative">
-    <!-- Header with animated gradient -->
-    <header class="bg-gradient-to-r from-cosmic-purple to-deep-space p-4 border-b-2 border-neon-purple shadow-lg neon-border">
-      <div class="flex justify-between items-center">
-        <div class="flex items-center space-x-3">
-          <i class="fas fa-comment-dots text-3xl text-neon-pink animate-neon-glow"></i>
-          <div>
-            <h1 class="text-3xl font-bold font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-neon-pink to-neon-blue">
-              NEON PULSE
-            </h1>
-            <div class="flex items-center space-x-2">
-              <div class="w-3 h-3 rounded-full bg-neon-green animate-pulse"></div>
-              <span id="roomName" class="text-sm text-neon-yellow font-semibold"></span>
-            </div>
-          </div>
-        </div>
-        <div class="flex items-center space-x-3">
-          <button id="onlineUsersToggle" class="p-2 rounded-full bg-deep-space text-neon-blue hover:bg-neon-purple transition-all md:hidden">
-            <i class="fas fa-users"></i>
-          </button>
-          <button id="themeToggle" class="p-2 rounded-full bg-deep-space text-neon-yellow hover:bg-neon-purple transition-all">
-            <i class="fas fa-moon"></i>
-          </button>
-          <button id="logoutBtn" class="px-4 py-2 bg-gradient-to-r from-neon-pink to-neon-purple text-white font-bold rounded-lg hover:opacity-90 focus:outline-none transition-all group">
-            <span class="group-hover:animate-float">Leave Room</span> <i class="fas fa-sign-out-alt ml-1"></i>
-          </button>
-        </div>
+<body class="bg-gray-900 text-purple-100 min-h-screen">
+  <div class="flex flex-col h-screen">
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-purple-900 p-3 sm:p-4 flex justify-between items-center">
+      <div class="flex items-center">
+        <button id="mobileMenuButton" class="md:hidden mr-3 text-purple-300">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h1 class="text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+          <i class="fas fa-comment-dots mr-2"></i>Neon Chat
+        </h1>
+        <span id="roomName" class="ml-3 sm:ml-6 text-purple-300 uppercase tracking-wide text-sm sm:text-base"></span>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button id="clearHistoryBtn" class="text-purple-300 hover:text-purple-100" title="Clear chat history">
+          <i class="fas fa-trash-alt"></i>
+        </button>
+        <button id="logoutBtn" class="text-purple-300 hover:text-purple-100">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
       </div>
     </header>
 
-    <!-- Main Chat Area -->
-    <div class="flex-1 flex overflow-hidden">
-      <!-- Online Users Sidebar (Desktop) -->
-      <div id="onlineUsersContainer" class="online-users-container w-64 bg-cosmic-purple border-r-2 border-neon-blue hidden md:block">
-        <div class="p-4 border-b-2 border-neon-blue">
-          <h3 class="text-lg font-bold text-neon-yellow flex items-center">
-            <i class="fas fa-users mr-2"></i> Online Users
-            <span id="onlineCount" class="ml-auto bg-neon-purple rounded-full px-2 py-1 text-xs">0</span>
-          </h3>
+    <!-- Main Content -->
+    <div class="flex flex-1 overflow-hidden relative">
+      <!-- Desktop Sidebar -->
+      <aside class="hidden md:block w-48 sm:w-64 bg-gray-800 border-r border-purple-900 p-3 sm:p-4 overflow-y-auto">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="font-bold text-purple-400">Online Users</h2>
+          <span id="onlineCount" class="text-xs bg-purple-900 px-2 py-1 rounded-full">0</span>
         </div>
-        <div id="onlineUsers" class="p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-150px)]">
-          <!-- Users will be added here -->
+        <ul id="onlineUsersDesktop" class="space-y-1 sm:space-y-2"></ul>
+      </aside>
+
+      <!-- Mobile Sidebar -->
+      <div id="mobileUsersMenu" class="hidden fixed inset-0 z-50 bg-gray-800 w-full sm:w-64 p-4 overflow-y-auto">
+        <div class="flex justify-between items-center mb-3 sm:mb-4">
+          <h2 class="font-bold text-purple-400">Online Users</h2>
+          <div class="flex items-center">
+            <span id="mobileOnlineCount" class="text-xs bg-purple-900 px-2 py-1 rounded-full mr-2">0</span>
+            <button id="closeMobileMenu" class="text-purple-300">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
         </div>
+        <ul id="onlineUsersMobile" class="space-y-1 sm:space-y-2"></ul>
       </div>
 
-      <!-- Chat Container -->
-      <div class="flex-1 flex flex-col overflow-hidden">
-        <!-- Pinned Messages -->
-        <div id="pinnedMessages" class="bg-cosmic-purple border-b-2 border-neon-blue p-3 hidden">
-          <div class="flex items-center text-neon-yellow">
-            <i class="fas fa-thumbtack mr-2 animate-pulse-slow"></i>
-            <span class="font-semibold">Pinned Message</span>
-          </div>
-        </div>
-
+      <!-- Chat Area -->
+      <main class="flex-1 flex flex-col">
         <!-- Messages -->
-        <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-deep-space bg-opacity-80 backdrop-blur-sm">
-          <!-- Welcome message -->
-          <div class="text-center py-8 animate-neon-flicker">
-            <div class="inline-block px-6 py-3 bg-gradient-to-r from-neon-purple to-neon-blue rounded-full">
-              <h2 class="text-xl font-orbitron text-white">Welcome to Neon Pulse Chat</h2>
-              <p class="text-sm text-neon-green">Your messages will appear here</p>
-            </div>
-          </div>
-        </div>
+        <div id="messages" class="flex-1 p-3 sm:p-4 overflow-y-auto space-y-3 sm:space-y-4"></div>
 
         <!-- Typing Indicator -->
-        <div id="typingIndicator" class="px-4 py-2 bg-cosmic-purple text-neon-green italic text-sm hidden">
-          <div class="flex items-center">
-            <div class="typing-dots flex space-x-1 mr-2">
-              <div class="w-2 h-2 bg-neon-green rounded-full animate-bounce" style="animation-delay: 0s"></div>
-              <div class="w-2 h-2 bg-neon-green rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-              <div class="w-2 h-2 bg-neon-green rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
-            </div>
-            <span id="typingUsers"></span>
-          </div>
+        <div id="typingIndicator" class="hidden px-3 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm text-purple-300 bg-gray-800 border-t border-purple-900">
+          <span id="typingUsers"></span>
         </div>
 
-        <!-- Message Input - Now properly responsive -->
-        <div class="bg-cosmic-purple border-t-2 border-neon-purple p-4 neon-border">
-          <form id="messageForm" class="flex flex-col md:flex-row gap-3 items-stretch">
-            <div class="flex-1 relative message-input-container">
-              <input type="text" id="messageInput" autocomplete="off" 
-                class="message-input w-full px-4 py-3 md:py-4 bg-deep-space border-2 border-neon-purple rounded-xl focus:outline-none focus:border-neon-pink text-white placeholder-neon-blue transition-all font-medium"
-                placeholder="Send a cosmic message...">
-              <div class="absolute right-3 top-3 flex space-x-2">
-                <button type="button" class="emoji-btn p-2 text-neon-yellow hover:text-neon-pink transition-all">
-                  <i class="far fa-smile"></i>
-                </button>
-                <label for="imageUpload" class="cursor-pointer p-2 text-neon-blue hover:text-neon-green transition-all">
-                  <i class="fas fa-image"></i>
-                  <input type="file" id="imageUpload" accept="image/*" class="hidden">
-                </label>
-                <button type="button" class="gif-btn p-2 text-neon-pink hover:text-neon-yellow transition-all">
-                  <i class="fas fa-film"></i>
-                </button>
-              </div>
-            </div>
-            <button type="submit" 
-              class="message-submit-btn px-6 bg-gradient-to-r from-neon-blue to-neon-green text-deep-space font-bold py-3 md:py-4 rounded-xl hover:shadow-lg hover:shadow-neon-blue/30 focus:outline-none transition-all transform hover:scale-105">
-              <i class="fas fa-paper-plane"></i>
-              <span class="ml-2 md:hidden">Send</span>
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Emoji Picker Modal -->
-  <div id="emojiModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden">
-    <div class="bg-deep-space border-2 border-neon-green rounded-xl p-4 w-80 max-w-full">
-      <div class="flex justify-between items-center mb-3">
-        <h3 class="text-neon-yellow font-semibold">Select Emoji</h3>
-        <button id="closeEmoji" class="text-neon-pink hover:text-neon-blue">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      <div class="grid grid-cols-8 gap-2" id="emojiContainer">
-        <!-- Emojis will be inserted here -->
-      </div>
+        <!-- Message Form -->
+        <form id="messageForm" class="p-3 sm:p-4 bg-gray-800 border-t border-purple-900 flex space-x-2">
+          <input id="messageInput" type="text" placeholder="Type your message..." 
+            class="flex-1 px-3 py-2 sm:px-4 sm:py-2 rounded-lg bg-gray-700 border border-purple-800 text-purple-100 placeholder-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm sm:text-base">
+          <button type="submit" class="bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-2 sm:px-4 sm:py-2 rounded-lg text-white hover:opacity-90 text-sm sm:text-base">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+          <label for="imageUpload" class="cursor-pointer px-3 py-2 sm:px-4 sm:py-2 bg-gray-700 rounded-lg hover:bg-gray-600 text-purple-300 flex items-center text-sm sm:text-base">
+            <i class="fas fa-image"></i>
+            <input type="file" id="imageUpload" accept="image/*" class="hidden">
+          </label>
+        </form>
+      </main>
     </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    // Create floating particles
-    document.addEventListener('DOMContentLoaded', function() {
-      const particlesContainer = document.getElementById('particles');
-      const particleCount = window.innerWidth < 768 ? 30 : 50;
-      
-      for (let i = 0; i < particleCount; i++) {
-        const particle = document.createElement('div');
-        particle.classList.add('particle');
-        
-        // Random properties
-        const size = Math.random() * 5 + 1;
-        const posX = Math.random() * window.innerWidth;
-        const posY = Math.random() * window.innerHeight;
-        const delay = Math.random() * 5;
-        const duration = Math.random() * 10 + 10;
-        
-        // Apply styles
-        particle.style.width = `${size}px`;
-        particle.style.height = `${size}px`;
-        particle.style.left = `${posX}px`;
-        particle.style.top = `${posY}px`;
-        particle.style.opacity = Math.random() * 0.5 + 0.1;
-        particle.style.animation = `float ${duration}s ease-in-out ${delay}s infinite`;
-        
-        // Random neon color
-        const colors = ['neon-pink', 'neon-blue', 'neon-purple', 'neon-green', 'neon-yellow'];
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
-        particle.style.backgroundColor = `var(--tw-${randomColor})`;
-        
-        particlesContainer.appendChild(particle);
-      }
-      
-      // Sample emojis for the picker
-      const emojis = ['😀', '😂', '😍', '🤔', '😎', '🥳', '😢', '😡', '🤯', '👻', '💩', '👍', '👎', '❤️', '🔥', '🎉', '🙏', '🚀'];
-      const emojiContainer = document.getElementById('emojiContainer');
-      
-      emojis.forEach(emoji => {
-        const emojiBtn = document.createElement('button');
-        emojiBtn.textContent = emoji;
-        emojiBtn.className = 'text-2xl hover:scale-125 transition-transform p-1';
-        emojiBtn.addEventListener('click', () => {
-          document.getElementById('messageInput').value += emoji;
-          document.getElementById('emojiModal').classList.add('hidden');
+    document.addEventListener("DOMContentLoaded", () => {
+      const params = new URLSearchParams(window.location.search);
+      const username = params.get("username") || "Guest";
+      const room = params.get("room") || "Lobby";
+
+      document.getElementById("roomName").textContent = room;
+      const socket = io();
+
+      const messagesDiv = document.getElementById("messages");
+      const messageForm = document.getElementById("messageForm");
+      const messageInput = document.getElementById("messageInput");
+      const typingIndicator = document.getElementById("typingIndicator");
+      const typingUsersElement = document.getElementById("typingUsers");
+      const onlineUsersDesktop = document.getElementById("onlineUsersDesktop");
+      const onlineUsersMobile = document.getElementById("onlineUsersMobile");
+      const mobileMenuButton = document.getElementById("mobileMenuButton");
+      const closeMobileMenu = document.getElementById("closeMobileMenu");
+      const mobileUsersMenu = document.getElementById("mobileUsersMenu");
+      const logoutBtn = document.getElementById("logoutBtn");
+      const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+      const imageUpload = document.getElementById("imageUpload");
+      const onlineCount = document.getElementById("onlineCount");
+      const mobileOnlineCount = document.getElementById("mobileOnlineCount");
+
+      // Track currently typing users
+      const typingUsers = new Set();
+      // Track messages that are currently being edited
+      const editingMessages = new Map();
+
+      // Storage key for messages
+      const STORAGE_KEY = `neonChat_${room}_messages`;
+
+      const scrollToBottom = () => {
+        messagesDiv.scrollTo({
+          top: messagesDiv.scrollHeight,
+          behavior: 'smooth'
         });
-        emojiContainer.appendChild(emojiBtn);
-      });
-      
-      // Emoji picker toggle
-      document.querySelector('.emoji-btn').addEventListener('click', () => {
-        document.getElementById('emojiModal').classList.toggle('hidden');
-      });
-      
-      document.getElementById('closeEmoji').addEventListener('click', () => {
-        document.getElementById('emojiModal').classList.add('hidden');
-      });
-      
-      // Online users toggle for mobile
-      const onlineUsersToggle = document.getElementById('onlineUsersToggle');
-      const onlineUsersContainer = document.getElementById('onlineUsersContainer');
-      
-      onlineUsersToggle.addEventListener('click', () => {
-        onlineUsersContainer.classList.toggle('active');
-      });
-      
-      // Sample online users (would be populated by your actual chat logic)
-      const onlineUsers = [
-        { name: 'CosmicTraveler', status: 'online' },
-        { name: 'NeonDreamer', status: 'online' },
-        { name: 'QuantumExplorer', status: 'idle' },
-        { name: 'Starlight', status: 'online' },
-        { name: 'GalacticHero', status: 'dnd' }
-      ];
-      
-      const onlineUsersList = document.getElementById('onlineUsers');
-      const onlineCount = document.getElementById('onlineCount');
-      
-      onlineUsers.forEach(user => {
-        const userElement = document.createElement('div');
-        userElement.className = 'flex items-center p-2 rounded-lg hover:bg-neon-purple/20 transition-colors';
+      };
+
+      // Load messages from localStorage
+      function loadMessages() {
+        const savedMessages = localStorage.getItem(STORAGE_KEY);
+        if (savedMessages) {
+          try {
+            const messages = JSON.parse(savedMessages);
+            messages.forEach(msg => {
+              displayMessage(msg, false); // false means don't save again
+            });
+            setTimeout(scrollToBottom, 100);
+          } catch (e) {
+            console.error("Failed to parse saved messages", e);
+          }
+        }
+      }
+
+      // Save message to localStorage
+      function saveMessage(message) {
+        let messages = [];
+        const savedMessages = localStorage.getItem(STORAGE_KEY);
         
-        let statusColor = 'bg-neon-green';
-        if (user.status === 'idle') statusColor = 'bg-neon-yellow';
-        if (user.status === 'dnd') statusColor = 'bg-neon-pink';
+        if (savedMessages) {
+          try {
+            messages = JSON.parse(savedMessages);
+          } catch (e) {
+            console.error("Failed to parse existing messages", e);
+          }
+        }
         
-        userElement.innerHTML = `
-          <div class="relative">
-            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center text-xs font-bold">
-              ${user.name.charAt(0).toUpperCase()}
-            </div>
-            <div class="absolute bottom-0 right-0 w-3 h-3 ${statusColor} rounded-full border-2 border-deep-space"></div>
-          </div>
-          <span class="ml-3 font-medium">${user.name}</span>
-        `;
+        // Keep only the last 100 messages to prevent localStorage overflow
+        messages.push(message);
+        if (messages.length > 100) {
+          messages = messages.slice(-100);
+        }
         
-        onlineUsersList.appendChild(userElement);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+      }
+
+      // Update message in localStorage
+      function updateMessageInStorage(messageId, newContent) {
+        const savedMessages = localStorage.getItem(STORAGE_KEY);
+        if (!savedMessages) return;
+
+        try {
+          let messages = JSON.parse(savedMessages);
+          const messageIndex = messages.findIndex(msg => msg.id === messageId);
+          if (messageIndex !== -1) {
+            messages[messageIndex].text = newContent;
+            messages[messageIndex].edited = true;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+          }
+        } catch (e) {
+          console.error("Failed to update message in storage", e);
+        }
+      }
+
+      // Remove message from localStorage
+      function removeMessageFromStorage(messageId) {
+        const savedMessages = localStorage.getItem(STORAGE_KEY);
+        if (!savedMessages) return;
+
+        try {
+          let messages = JSON.parse(savedMessages);
+          messages = messages.filter(msg => msg.id !== messageId);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+        } catch (e) {
+          console.error("Failed to remove message from storage", e);
+        }
+      }
+
+      // Clear chat history
+      function clearChatHistory() {
+        if (confirm("Are you sure you want to clear all chat history in this room?")) {
+          localStorage.removeItem(STORAGE_KEY);
+          messagesDiv.innerHTML = '';
+          
+          // Display a system message
+          const systemMsg = {
+            isSystem: true,
+            text: "Chat history has been cleared",
+            timestamp: new Date()
+          };
+          displayMessage(systemMsg, false);
+        }
+      }
+
+      // Generate a unique ID for messages
+      function generateMessageId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+      }
+
+      // Display a message in the chat
+      function displayMessage(data, saveToStorage = true) {
+        // Generate ID if not present
+        if (!data.id) {
+          data.id = generateMessageId();
+        }
+
+        // If we're already editing this message, skip
+        if (editingMessages.has(data.id)) {
+          return;
+        }
+
+        const messageDiv = document.createElement("div");
+        messageDiv.className = "message-container relative";
+        messageDiv.dataset.messageId = data.id;
+        
+        const contentDiv = document.createElement("div");
+        contentDiv.className = "message bg-gray-800 p-3 rounded-lg";
+        
+        if (data.isSystem) {
+          contentDiv.className += " text-center text-purple-300 italic text-sm";
+          contentDiv.textContent = data.text;
+        } else {
+          if (data.username === username) {
+            contentDiv.className += " ml-auto bg-gradient-to-r from-purple-700 to-pink-700";
+            
+            // Add action buttons for user's own messages
+            const actionsDiv = document.createElement("div");
+            actionsDiv.className = "message-actions space-x-1 p-1";
+            
+            const editButton = document.createElement("button");
+            editButton.className = "text-white hover:text-purple-200 text-xs";
+            editButton.innerHTML = '<i class="fas fa-edit"></i>';
+            editButton.title = "Edit";
+            editButton.addEventListener("click", (e) => {
+              e.stopPropagation();
+              startEditingMessage(data.id);
+            });
+            
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "text-white hover:text-purple-200 text-xs";
+            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteButton.title = "Delete";
+            deleteButton.addEventListener("click", (e) => {
+              e.stopPropagation();
+              deleteMessage(data.id);
+            });
+            
+            actionsDiv.appendChild(editButton);
+            actionsDiv.appendChild(deleteButton);
+            messageDiv.appendChild(actionsDiv);
+          } else {
+            contentDiv.className += " mr-auto bg-gray-700";
+          }
+          
+          if (data.image) {
+            const imgContainer = document.createElement("div");
+            imgContainer.className = "mt-2";
+            const img = document.createElement("img");
+            img.className = "max-w-full max-h-48 rounded-lg";
+            img.src = data.image;
+            
+            img.onload = function() {
+              scrollToBottom(true);
+            };
+            img.onerror = function() {
+              scrollToBottom(true);
+            };
+            
+            imgContainer.appendChild(img);
+            
+            contentDiv.innerHTML = `
+              <div class="flex justify-between items-baseline">
+                <strong class="${data.username === username ? 'text-pink-200' : 'text-purple-200'} text-sm">${data.username}</strong>
+                <span class="text-xs text-purple-400 ml-2">${new Date(data.timestamp || Date.now()).toLocaleTimeString()}</span>
+              </div>
+              <div class="text-sm message-text mt-1">${data.text || ''}</div>
+            `;
+            contentDiv.appendChild(imgContainer);
+          } else {
+            // Regular text message
+            let editedIndicator = data.edited ? '<span class="text-xs text-purple-400 italic">(edited)</span>' : '';
+            contentDiv.innerHTML = `
+              <div class="flex justify-between items-baseline">
+                <strong class="${data.username === username ? 'text-pink-200' : 'text-purple-200'} text-sm">${data.username}</strong>
+                <div>
+                  ${editedIndicator}
+                  <span class="text-xs text-purple-400 ml-2">${new Date(data.timestamp || Date.now()).toLocaleTimeString()}</span>
+                </div>
+              </div>
+              <div class="text-sm message-text mt-1">${data.text || ''}</div>
+            `;
+          }
+        }
+        
+        messageDiv.appendChild(contentDiv);
+        
+        // Replace existing message if it's an update
+        const existingMessage = document.querySelector(`[data-message-id="${data.id}"]`);
+        if (existingMessage) {
+          existingMessage.replaceWith(messageDiv);
+        } else {
+          messagesDiv.appendChild(messageDiv);
+        }
+        
+        // Scroll immediately for text messages
+        if (!data.image) {
+          setTimeout(() => scrollToBottom(), 50);
+        }
+        
+        if (saveToStorage && !data.isSystem) {
+          saveMessage(data);
+        }
+      }
+// Start editing a message
+function startEditingMessage(messageId) {
+  // If already editing another message, cancel that first
+  if (editingMessages.size > 0) {
+    const [existingId, existingCallback] = editingMessages.entries().next().value;
+    cancelEditMessage(existingId, existingCallback);
+  }
+
+  const messageElement = document.querySelector(`[data-message-id="${messageId}"] .message-text`);
+  if (!messageElement) return; // Silently return if message not found
+
+  const originalContent = messageElement.textContent;
+  const input = document.createElement("input");
+  input.className = "edit-input";
+  input.value = originalContent;
+  
+  const saveEdit = () => {
+    const newContent = input.value.trim();
+    if (newContent && newContent !== originalContent) {
+      socket.emit("editMessage", {
+        messageId,
+        newContent,
+        username
       });
-      
-      onlineCount.textContent = onlineUsers.filter(u => u.status === 'online').length;
-    });
-    
-    // Theme toggle functionality
-    document.getElementById('themeToggle').addEventListener('click', function() {
-      document.documentElement.classList.toggle('dark');
-      this.innerHTML = document.documentElement.classList.contains('dark') ? 
-        '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+    }
+    editingMessages.delete(messageId);
+    if (messageElement.parentNode) {
+      messageElement.textContent = newContent || originalContent;
+      input.remove();
+    }
+  };
+
+  const cancelEdit = () => {
+    editingMessages.delete(messageId);
+    if (messageElement.parentNode) {
+      messageElement.textContent = originalContent;
+      input.remove();
+    }
+  };
+
+  input.addEventListener("blur", saveEdit);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      saveEdit();
+    } else if (e.key === "Escape") {
+      cancelEdit();
+    }
+  });
+
+  // Replace the text with the input field
+  messageElement.textContent = '';
+  messageElement.appendChild(input);
+  input.focus();
+  
+  // Store the cancel callback
+  editingMessages.set(messageId, cancelEdit);
+}    // Cancel editing a message
+      function cancelEditMessage(messageId, cancelCallback) {
+        if (cancelCallback) {
+          cancelCallback();
+        }
+        editingMessages.delete(messageId);
+      }
+
+    // Delete a message
+function deleteMessage(messageId) {
+  socket.emit("deleteMessage", {
+    messageId,
+    username
+  });
+  
+  // Remove from DOM immediately
+  const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+  if (messageElement) {
+    messageElement.remove();
+  }
+  
+  // Remove from storage
+  removeMessageFromStorage(messageId);
+}   // Handle image upload
+      imageUpload.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Client-side validation
+        if (file.size > 20 * 1024 * 1024) {
+          const errorMsg = {
+            isSystem: true,
+            text: "Image too large (max 20MB)",
+            timestamp: new Date()
+          };
+          displayMessage(errorMsg, false);
+          e.target.value = "";
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("image", file);
+
+        fetch("/upload", {
+          method: "POST",
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.imageUrl) {
+            const messageData = {
+              username,
+              image: data.imageUrl,
+              text: "", // Ensure text property exists
+              timestamp: new Date(),
+              id: generateMessageId()
+            };
+            socket.emit("chatMessage", messageData);
+          }
+        })
+        .catch(error => {
+          console.error("Upload error:", error);
+          const errorMsg = {
+            isSystem: true,
+            text: "Failed to upload image",
+            timestamp: new Date()
+          };
+          displayMessage(errorMsg, false);
+        })
+        .finally(() => {
+          e.target.value = "";
+        });
+      });
+
+      // Join chat room
+      socket.emit("joinRoom", { username, room });
+
+      // Load saved messages when page loads
+      loadMessages();
+
+      // Mobile menu toggle
+      mobileMenuButton.addEventListener("click", () => {
+        mobileUsersMenu.classList.remove("hidden");
+        mobileUsersMenu.classList.add("visible");
+      });
+
+      closeMobileMenu.addEventListener("click", () => {
+        mobileUsersMenu.classList.remove("visible");
+        mobileUsersMenu.classList.add("hidden");
+      });
+
+      // Logout button
+      logoutBtn.addEventListener("click", () => {
+        window.location.href = "/";
+      });
+
+      // Clear history button
+      clearHistoryBtn.addEventListener("click", clearChatHistory);
+
+      // Typing indicators
+      let typingTimeout;
+      let isTyping = false;
+
+      messageInput.addEventListener("input", () => {
+        if (!isTyping) {
+          isTyping = true;
+          socket.emit("typing", { isTyping: true });
+        }
+        
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+          isTyping = false;
+          socket.emit("typing", { isTyping: false });
+        }, 2000);
+      });
+
+      // Handle typing status updates
+      socket.on("typing", (data) => {
+        if (data.isTyping) {
+          typingUsers.add(data.username);
+        } else {
+          typingUsers.delete(data.username);
+        }
+
+        // Update typing indicator
+        if (typingUsers.size > 0) {
+          const names = Array.from(typingUsers);
+          let typingText = '';
+          
+          if (names.length === 1) {
+            typingText = `${names[0]} is typing...`;
+          } else if (names.length === 2) {
+            typingText = `${names[0]} and ${names[1]} are typing...`;
+          } else {
+            typingText = `${names[0]}, ${names[1]}, and others are typing...`;
+          }
+          
+          typingUsersElement.textContent = typingText;
+          typingIndicator.classList.remove("hidden");
+        } else {
+          typingIndicator.classList.add("hidden");
+        }
+      });
+
+      // Message form submission
+      messageForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const message = messageInput.value.trim();
+        if (!message) return;
+        
+        const messageData = {
+          username,
+          text: message,
+          timestamp: new Date(),
+          id: generateMessageId()
+        };
+        
+        socket.emit("chatMessage", messageData);
+        messageInput.value = "";
+        
+        if (isTyping) {
+          isTyping = false;
+          socket.emit("typing", { isTyping: false });
+          clearTimeout(typingTimeout);
+        }
+      });
+
+      // Handle incoming messages
+      socket.on("message", (data) => {
+        displayMessage(data);
+      });
+
+      // Handle edited messages
+      socket.on("messageEdited", (data) => {
+        // If we're currently editing this message, cancel that
+        if (editingMessages.has(data.messageId)) {
+          const cancelCallback = editingMessages.get(data.messageId);
+          cancelEditMessage(data.messageId, cancelCallback);
+        }
+        
+        // Find the message in the DOM
+        const messageElement = document.querySelector(`[data-message-id="${data.messageId}"]`);
+        if (messageElement) {
+          // Update the message content
+          const messageTextElement = messageElement.querySelector(".message-text");
+          if (messageTextElement) {
+            messageTextElement.textContent = data.newContent;
+          }
+          
+          // Add edited indicator
+          const timeElement = messageElement.querySelector(".text-xs.text-purple-400");
+          if (timeElement && !timeElement.innerHTML.includes("(edited)")) {
+            timeElement.innerHTML = `(edited) ${timeElement.innerHTML}`;
+          }
+        }
+        
+        // Update in storage
+        updateMessageInStorage(data.messageId, data.newContent);
+      });
+
+      // Handle deleted messages
+      socket.on("messageDeleted", (data) => {
+        const messageElement = document.querySelector(`[data-message-id="${data.messageId}"]`);
+        if (messageElement) {
+          messageElement.remove();
+        }
+        
+        // Remove from storage
+        removeMessageFromStorage(data.messageId);
+      });
+
+      // Handle user list updates
+      socket.on("userList", (users) => {
+        onlineUsersDesktop.innerHTML = "";
+        onlineUsersMobile.innerHTML = "";
+        
+        users.forEach(user => {
+          const userEl = document.createElement("li");
+          userEl.className = "text-purple-200 flex items-center text-sm";
+          userEl.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+            ${user.username}
+            <span class="text-xs text-purple-400 ml-2">${new Date(user.lastSeen).toLocaleTimeString()}</span>
+          `;
+          
+          onlineUsersDesktop.appendChild(userEl.cloneNode(true));
+          onlineUsersMobile.appendChild(userEl.cloneNode(true));
+        });
+        
+        // Update online count
+        const count = users.length;
+        onlineCount.textContent = count;
+        mobileOnlineCount.textContent = count;
+      });
+
+      // Handle errors
+      socket.on("error", (error) => {
+        const errorDiv = document.createElement("div");
+        errorDiv.className = "bg-red-900 text-white p-2 rounded-lg text-center text-xs";
+        errorDiv.textContent = error;
+        messagesDiv.appendChild(errorDiv);
+        scrollToBottom();
+      });
+
+      // Add resize observer to handle layout changes
+      const resizeObserver = new ResizeObserver(() => {
+        scrollToBottom();
+      });
+      resizeObserver.observe(messagesDiv);
+
+      // Save messages before page unload
+      window.addEventListener("beforeunload", () => {
+        if (isTyping) {
+          socket.emit("typing", { isTyping: false });
+        }
+      });
     });
   </script>
-  <script src="/js/script.js"></script>
 </body>
 </html>

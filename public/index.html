@@ -2,16 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Neon Chat - Join</title>
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Custom neon styles -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    .neon-border {
-      position: relative;
+    html, body {
+      overflow-x: hidden;
+      width: 100%;
     }
-    .neon-border::before {
+    .neon-container {
+      position: relative;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .neon-container::before {
       content: '';
       position: absolute;
       top: 0;
@@ -28,62 +33,57 @@
       mask-composite: exclude;
       pointer-events: none;
     }
-
-    /* Dark/Light mode styles */
-    :root.dark {
-      --tw-bg-opacity: 1;
-      background-color: rgba(17, 24, 39, var(--tw-bg-opacity));
-    }
-    :root:not(.dark) {
-      --tw-bg-opacity: 1;
-      background-color: rgba(243, 244, 246, var(--tw-bg-opacity));
-    }
-    .dark .form-input {
-      background-color: rgba(55, 65, 81, var(--tw-bg-opacity));
-      border-color: rgba(76, 29, 149, var(--tw-border-opacity));
-      color: rgba(237, 233, 254, var(--tw-text-opacity));
-    }
-    .dark .form-input::placeholder {
-      color: rgba(168, 85, 247, var(--tw-text-opacity));
-    }
   </style>
-  <!-- Font Awesome CDN -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-gray-900 text-purple-100 min-h-screen flex items-center justify-center">
-  <div class="max-w-md w-full bg-gray-800 rounded-lg shadow-xl overflow-hidden neon-border">
-    <div class="p-8">
-      <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-2">
-          <i class="fas fa-comment-dots mr-2"></i>Neon Chat
-        </h1>
-        <p class="text-purple-300">Join the conversation in real-time</p>
+<body class="bg-gray-900 text-purple-100 min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md mx-4">
+    <div class="neon-container w-full bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+      <div class="p-6 sm:p-8">
+        <div class="text-center mb-6 sm:mb-8">
+          <h1 class="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-2">
+            <i class="fas fa-comment-dots mr-2"></i>Neon Chat
+          </h1>
+          <p class="text-purple-300 text-sm sm:text-base">Join the conversation in real-time</p>
+        </div>
+        
+        <form id="joinForm" class="space-y-4 sm:space-y-6">
+          <div>
+            <label for="username" class="block text-sm font-medium text-purple-300 mb-1">Your Name</label>
+            <input type="text" id="username" required 
+              class="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gray-700 border border-purple-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-100 placeholder-purple-500 transition-all text-sm sm:text-base"
+              placeholder="Enter your name">
+          </div>
+          
+          <div>
+            <label for="room" class="block text-sm font-medium text-purple-300 mb-1">Room Name</label>
+            <input type="text" id="room" 
+              class="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gray-700 border border-purple-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-100 placeholder-purple-500 transition-all text-sm sm:text-base"
+              placeholder="Enter room name (default: general)">
+          </div>
+          
+          <button type="submit" 
+            class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-2 px-3 sm:py-3 sm:px-4 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all text-sm sm:text-base">
+            Join Chat <i class="fas fa-sign-in-alt ml-2"></i>
+          </button>
+        </form>
       </div>
-      
-      <form id="joinForm" class="space-y-6">
-        <div>
-          <label for="username" class="block text-sm font-medium text-purple-300 mb-1">Your Name</label>
-          <input type="text" id="username" required 
-            class="form-input w-full px-4 py-3 bg-gray-700 border border-purple-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-100 placeholder-purple-500 transition-all"
-            placeholder="Enter your name">
-        </div>
-        
-        <div>
-          <label for="room" class="block text-sm font-medium text-purple-300 mb-1">Room Name</label>
-          <input type="text" id="room" 
-            class="form-input w-full px-4 py-3 bg-gray-700 border border-purple-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-purple-100 placeholder-purple-500 transition-all"
-            placeholder="Enter room name (default: general)">
-        </div>
-        
-        <button type="submit" 
-          class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition-all">
-          Join Chat <i class="fas fa-sign-in-alt ml-2"></i>
-        </button>
-      </form>
     </div>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/js/script.js"></script>
+  <script>
+    document.getElementById("joinForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const username = document.getElementById("username").value.trim();
+      const room = document.getElementById("room").value.trim() || "general";
+      if (!username) return;
+      localStorage.setItem("username", username);
+      window.location.href = `/chat?username=${encodeURIComponent(username)}&room=${encodeURIComponent(room)}`;
+    });
+    
+    const savedUsername = localStorage.getItem("username");
+    if (savedUsername) {
+      document.getElementById("username").value = savedUsername;
+    }
+  </script>
 </body>
 </html>

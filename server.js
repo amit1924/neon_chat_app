@@ -1,133 +1,3 @@
-// const express = require("express");
-// const socketio = require("socket.io");
-// const multer = require("multer");
-// const path = require("path");
-// const { v4: uuidv4 } = require("uuid");
-
-// const app = express();
-// const PORT = process.env.PORT || 3000;
-
-// // Configure multer for file uploads
-// const storage = multer.diskStorage({
-//   destination: (req, file, cb) => {
-//     cb(null, "public/images");
-//   },
-//   filename: (req, file, cb) => {
-//     const ext = path.extname(file.originalname);
-//     cb(null, `${uuidv4()}${ext}`);
-//   },
-// });
-
-// const upload = multer({
-//   storage,
-//   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
-//   fileFilter: (req, file, cb) => {
-//     const filetypes = /jpeg|jpg|png|gif/;
-//     const extname = filetypes.test(
-//       path.extname(file.originalname).toLowerCase()
-//     );
-//     const mimetype = filetypes.test(file.mimetype);
-//     if (extname && mimetype) {
-//       return cb(null, true);
-//     } else {
-//       cb("Error: Images only (JPEG, JPG, PNG, GIF)");
-//     }
-//   },
-// }).single("image");
-
-// // Middleware
-// app.use(express.static(path.join(__dirname, "public")));
-
-// // Routes
-// app.get("/", (req, res) => {
-//   res.sendFile(path.join(__dirname, "public/index.html"));
-// });
-
-// app.get("/chat", (req, res) => {
-//   res.sendFile(path.join(__dirname, "public/chat.html"));
-// });
-
-// // Start server
-// const server = app.listen(PORT, () => {
-//   console.log(`Server running on port ${PORT}`);
-// });
-
-// // Socket.io setup
-// const io = socketio(server);
-
-// io.on("connection", (socket) => {
-//   console.log("New user connected");
-
-//   // Join room
-//   socket.on("joinRoom", ({ username, room }) => {
-//     socket.join(room);
-
-//     // Welcome current user
-//     socket.emit("message", {
-//       username: "ChatBot",
-//       text: `Welcome to the chat, ${username}!`,
-//       time: new Date().toLocaleTimeString(),
-//       isSystem: true,
-//     });
-
-//     // Broadcast when a user connects
-//     socket.broadcast.to(room).emit("message", {
-//       username: "ChatBot",
-//       text: `${username} has joined the chat`,
-//       time: new Date().toLocaleTimeString(),
-//       isSystem: true,
-//     });
-
-//     // Store user data
-//     socket.username = username;
-//     socket.room = room;
-//   });
-
-//   // Listen for chat messages
-//   socket.on("chatMessage", (msg) => {
-//     io.to(socket.room).emit("message", {
-//       username: socket.username,
-//       text: msg.text,
-//       image: msg.image,
-//       time: new Date().toLocaleTimeString(),
-//       isSystem: false,
-//     });
-//   });
-
-//   // Listen for typing events
-//   socket.on("typing", (isTyping) => {
-//     socket.broadcast.to(socket.room).emit("typing", {
-//       username: socket.username,
-//       isTyping,
-//     });
-//   });
-
-//   // Runs when client disconnects
-//   socket.on("disconnect", () => {
-//     if (socket.username) {
-//       io.to(socket.room).emit("message", {
-//         username: "ChatBot",
-//         text: `${socket.username} has left the chat`,
-//         time: new Date().toLocaleTimeString(),
-//         isSystem: true,
-//       });
-//     }
-//   });
-// });
-
-// // Handle image uploads
-// app.post("/upload", (req, res) => {
-//   upload(req, res, (err) => {
-//     if (err) {
-//       return res.status(400).json({ error: err });
-//     }
-//     if (!req.file) {
-//       return res.status(400).json({ error: "No file uploaded" });
-//     }
-//     res.json({ imageUrl: `/images/${req.file.filename}` });
-//   });
-// });
-
 const express = require("express");
 const socketio = require("socket.io");
 const multer = require("multer");
@@ -282,15 +152,17 @@ io.on("connection", (socket) => {
       }
       messageRateLimits[socket.id] = now;
 
-      // Validate and sanitize message
-      if (!msg || typeof msg.text !== "string") {
-        throw new Error("Invalid message format");
+      // Validate message - either text or image must be present
+      if (!msg || (typeof msg.text !== "string" && !msg.image)) {
+        throw new Error("Invalid message format - must contain text or image");
       }
 
-      const cleanText = sanitizeHtml(msg.text, {
-        allowedTags: [],
-        allowedAttributes: {},
-      });
+      const cleanText = msg.text
+        ? sanitizeHtml(msg.text, {
+            allowedTags: [],
+            allowedAttributes: {},
+          })
+        : "";
 
       const message = {
         id: uuidv4(),
@@ -311,14 +183,23 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Listen for typing events
-  socket.on("typing", (isTyping) => {
-    if (typeof isTyping !== "boolean") return;
+  socket.on("typing", (data) => {
+    try {
+      if (typeof data.isTyping !== "boolean") return;
 
-    socket.broadcast.to(socket.room).emit("typing", {
-      username: socket.username,
-      isTyping,
-    });
+      const user = chatRooms[socket.room]?.users.find(
+        (u) => u.id === socket.id
+      );
+      if (!user || !socket.room) return;
+
+      // Broadcast to everyone in the room except the sender
+      socket.broadcast.to(socket.room).emit("typing", {
+        username: user.username,
+        isTyping: data.isTyping,
+      });
+    } catch (error) {
+      console.error("Typing indicator error:", error);
+    }
   });
 
   // Handle reactions
@@ -354,14 +235,12 @@ io.on("connection", (socket) => {
   socket.on("editMessage", ({ id, text }) => {
     try {
       const room = chatRooms[socket.room];
-      if (!room) throw new Error("Room not found");
+      if (!room) return; // Silently return if room not found
 
       const message = room.messages.find((m) => m.id === id);
-      if (!message) throw new Error("Message not found");
+      if (!message) return; // Silently return if message not found
 
-      if (message.username !== socket.username) {
-        throw new Error("You can only edit your own messages");
-      }
+      if (message.username !== socket.username) return; // Silently return if not owner
 
       const cleanText = sanitizeHtml(text, {
         allowedTags: [],
@@ -373,7 +252,7 @@ io.on("connection", (socket) => {
       io.to(socket.room).emit("messageEdited", { id, text: cleanText });
     } catch (error) {
       console.error("Edit message error:", error);
-      socket.emit("error", error.message);
+      // Don't send error to client
     }
   });
 
@@ -381,20 +260,48 @@ io.on("connection", (socket) => {
   socket.on("deleteMessage", (messageId) => {
     try {
       const room = chatRooms[socket.room];
-      if (!room) throw new Error("Room not found");
+      if (!room) return; // Silently return if room not found
 
       const messageIndex = room.messages.findIndex((m) => m.id === messageId);
-      if (messageIndex === -1) throw new Error("Message not found");
+      if (messageIndex === -1) return; // Silently return if message not found
 
-      if (room.messages[messageIndex].username !== socket.username) {
-        throw new Error("You can only delete your own messages");
-      }
+      if (room.messages[messageIndex].username !== socket.username) return; // Silently return if not owner
 
       room.messages.splice(messageIndex, 1);
       io.to(socket.room).emit("messageDeleted", messageId);
     } catch (error) {
       console.error("Delete message error:", error);
-      socket.emit("error", error.message);
+      // Don't send error to client
+    }
+  });
+
+  socket.on("error", (error) => {
+    // Ignore "not found" messages completely
+    if (error.includes("not found")) return;
+
+    // Only show other errors
+    const errorDiv = document.createElement("div");
+    errorDiv.className =
+      "bg-red-900 text-white p-2 rounded-lg text-center text-xs";
+    errorDiv.textContent = error;
+    messagesDiv.appendChild(errorDiv);
+    scrollToBottom();
+  });
+
+  socket.on("typing", (isTyping) => {
+    try {
+      if (typeof isTyping !== "boolean") return;
+
+      const user = users[socket.id];
+      if (!user || !user.room) return;
+
+      // Broadcast to everyone in the room except the sender
+      socket.broadcast.to(user.room).emit("typingStatus", {
+        username: user.username,
+        isTyping: isTyping,
+      });
+    } catch (error) {
+      console.error("Typing indicator error:", error);
     }
   });
 
